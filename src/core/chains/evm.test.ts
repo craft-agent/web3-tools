@@ -41,6 +41,16 @@ describe("the EVM chain table", () => {
     }
   })
 
+  test("every mainnet has one testnet", () => {
+    for (const mainnet of chains.filter((chain) => !chain.testnet)) {
+      expect(chains.filter((chain) => chain.mainnet === mainnet.key)).toHaveLength(1)
+    }
+  })
+
+  test("Alchemy serves every chain but Scroll Sepolia", () => {
+    expect(chains.filter((chain) => chain.alchemy === undefined).map((chain) => chain.key)).toEqual(["scroll-sepolia"])
+  })
+
   test("a testnet has its mainnet's native coin and fee model", () => {
     for (const chain of chains) {
       if (!chain.testnet) continue
