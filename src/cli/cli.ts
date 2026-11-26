@@ -23,6 +23,7 @@ import { stateDirContext } from "../entry/state-dir"
 import { visible } from "../entry/visible"
 import { promptTranslator, promptWords } from "../entry/words"
 import { PROJECT } from "../project"
+import { runWalletCommand } from "./wallet"
 
 /** The exit codes of a command: it did its work, the work failed, or the command line was wrong. */
 export const EXIT_OK = 0
@@ -239,6 +240,11 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error)
 }
 
+/** The commands a person runs to set up the package's local state, which print plain text rather than a JSON document. */
+const PERSON_COMMANDS: Partial<Record<string, (argv: string[], io: CliIo) => Promise<number>>> = {
+  wallet: runWalletCommand,
+}
+
 /**
  * The command line of the package, for callers that are not a harness's own
  * plugin: `list` answers with the selected tools, `run` runs one with the
@@ -270,9 +276,14 @@ function errorDetail(error: unknown): string {
  * as flags or `<envPrefix>_<OPTION>` variables, and `run` and `target` hand their
  * values to the tool as `options`. Standard output carries only the JSON document; a
  * mistake in the command line is one line on standard error and `EXIT_USAGE`.
+ * `wallet` is for a person setting up a wallet's key (see `PERSON_COMMANDS`).
  * Resolves to the exit code.
  */
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
+  const [name, ...rest] = argv
+  const personCommand = name !== undefined && Object.hasOwn(PERSON_COMMANDS, name) ? PERSON_COMMANDS[name] : undefined
+  if (personCommand) return personCommand(rest, io)
+
   let command: Command
   try {
     command = parseCommand(argv, io)
