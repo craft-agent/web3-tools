@@ -24,7 +24,9 @@
         "WEB3_TOOLS_CONFIRM",
         "WEB3_TOOLS_UNATTENDED",
         "WEB3_TOOLS_GRANTS_DIR",
-        "WEB3_TOOLS_GRANT_KEY"
+        "WEB3_TOOLS_GRANT_KEY",
+        "ALCHEMY_API_KEY",
+        "HELIUS_API_KEY"
       ]
     }
   }

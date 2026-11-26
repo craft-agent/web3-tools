@@ -167,6 +167,22 @@ settings only to the MCP server, so they list every skill whatever the
 settings select. OpenCode V1 registers no skills, and its copied skills are
 all listed too.
 
+### EVM (`evm`)
+
+On by default. Lists supported EVM chains and the provider each would use without a request.
+
+| Tool            | What it does                                       | Class |
+| --------------- | -------------------------------------------------- | ----- |
+| `web3_evm_read` | `chains`: list chains, native coins and fee models | read  |
+
+### Solana (`solana`)
+
+On by default. Lists supported Solana clusters and the provider each would use without a request.
+
+| Tool               | What it does                                  | Class |
+| ------------------ | --------------------------------------------- | ----- |
+| `web3_solana_read` | `chains`: list clusters and their native coin | read  |
+
 ### Grants (`grants`)
 
 Off by default. Delegates bounded writes for jobs where no person can answer.
@@ -366,9 +382,8 @@ without one. Keep in a labelled wallet only what you are ready to lose: an
 approved send can move everything it holds.
 
 Each chain is read through its public endpoint unless a provider's key is
-set: `ALCHEMY_API_KEY` for EVM chains, `HELIUS_API_KEY` for Solana and
-`ETHERSCAN_API_KEY` for verified contract sources. Codex forwards them with
-the settings' variables.
+set: `ALCHEMY_API_KEY` for EVM chains and `HELIUS_API_KEY` for Solana.
+Codex forwards both with the settings' variables.
 
 `WEB3_TOOLS_GRANT_KEY` is a variable only, never a flag or a plugin
 option. Use at least 32 characters, for example from `openssl rand -hex 32`,
