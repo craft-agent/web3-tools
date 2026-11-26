@@ -11,9 +11,9 @@ export const PROJECT = {
   /** Every setting's environment variable is `<envPrefix>_<SETTING>`. */
   envPrefix: "AGENT_TOOL_STARTER",
   /** The toolsets, in the order `all` lists them. */
-  toolsets: ["notes"] as readonly string[],
+  toolsets: [] as readonly string[],
   /** The toolsets on when a setting names none. */
-  defaultToolsets: ["notes"] as readonly string[],
+  defaultToolsets: [] as readonly string[],
   /** The package's own settings, which the tools themselves read: each snake_case name and its type, with bounds when it needs them. */
   options: {} as Readonly<Record<string, OptionSpec>>,
   /** The environment variables the tools read besides the settings, which Codex forwards to the server after them. */
