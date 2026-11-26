@@ -16,7 +16,7 @@ export type Family = "evm" | "solana"
 const PHRASE_WORD_COUNTS = [12, 15, 18, 21, 24]
 
 /** The byte length of an EVM secret and of a Solana seed or public key. */
-const KEY_BYTES = 32
+export const KEY_BYTES = 32
 
 /** The byte length of a Solana keypair: the seed, then the public key. */
 const KEYPAIR_BYTES = 64
