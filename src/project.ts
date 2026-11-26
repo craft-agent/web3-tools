@@ -3,13 +3,13 @@ import type { OptionSpec } from "./core"
 /** What makes this package itself; a project made from the starter sets these once (the setup script does). */
 export const PROJECT = {
   /** The plugin, MCP server and program name. */
-  name: "agent-tool-starter",
+  name: "web3-tools",
   /** The command line the Hermes plugin calls. */
-  cli: "agent-tool-starter-cli",
+  cli: "web3-tools-cli",
   /** Every tool ID starts with `<toolPrefix>_`. */
-  toolPrefix: "example",
+  toolPrefix: "web3",
   /** Every setting's environment variable is `<envPrefix>_<SETTING>`. */
-  envPrefix: "AGENT_TOOL_STARTER",
+  envPrefix: "WEB3_TOOLS",
   /** The toolsets, in the order `all` lists them. */
   toolsets: [] as readonly string[],
   /** The toolsets on when a setting names none. */
