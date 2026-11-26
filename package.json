@@ -1,17 +1,16 @@
 {
-  "name": "@craftsamo/agent-tool-starter",
-  "version": "0.5.1",
-  "private": true,
-  "description": "A starter for tool packages that coding agents call: one implementation delivered to every harness.",
+  "name": "@craftsamo/web3-tools",
+  "version": "0.0.0",
+  "description": "Web3 tools for coding agents: EVM and Solana reads, wallets and sends, and Hyperliquid.",
   "author": "craftsamo",
   "license": "LicenseRef-AGPL-3.0-Commons-Clause",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/craftsamo/agent-tool-starter.git"
+    "url": "git+https://github.com/craft-agent/web3-tools.git"
   },
-  "homepage": "https://github.com/craftsamo/agent-tool-starter#readme",
-  "bugs": "https://github.com/craftsamo/agent-tool-starter/issues",
-  "mcpName": "io.github.craftsamo/agent-tool-starter",
+  "homepage": "https://github.com/craft-agent/web3-tools#readme",
+  "bugs": "https://github.com/craft-agent/web3-tools/issues",
+  "mcpName": "io.github.craft-agent/web3-tools",
   "type": "module",
   "main": "dist/opencode.js",
   "exports": {
@@ -19,8 +18,8 @@
     "./opencode": "./dist/opencode.js"
   },
   "bin": {
-    "agent-tool-starter": "dist/mcp.js",
-    "agent-tool-starter-cli": "dist/cli.js"
+    "web3-tools": "dist/mcp.js",
+    "web3-tools-cli": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -33,7 +32,7 @@
     "mcp_config.json",
     "plugin.yaml",
     "__init__.py",
-    "src/hermes/agent_tool_starter_hermes",
+    "src/hermes/web3_tools_hermes",
     "!**/__pycache__",
     "!**/*.pyc"
   ],
@@ -50,7 +49,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.core.json",
-    "setup": "node scripts/setup/main.mjs",
     "prepare": "node -e \"const fs=require('fs'),{execFileSync}=require('child_process');if(fs.existsSync('.git')){if(fs.existsSync('node_modules/husky'))execFileSync('husky',{stdio:'inherit'});if(fs.existsSync('node_modules/@craftsamo/repo-kit'))execFileSync('repo-kit',['agents','sync'],{stdio:'inherit'})}\""
   },
   "devDependencies": {

@@ -1,16 +1,16 @@
 {
-  "name": "agent-tool-starter",
-  "version": "0.5.1",
-  "description": "A starter for tool packages that coding agents call: one implementation delivered to every harness.",
+  "name": "web3-tools",
+  "version": "0.0.0",
+  "description": "Web3 tools for coding agents: EVM and Solana reads, wallets and sends, and Hyperliquid.",
   "author": {
     "name": "craftsamo",
-    "url": "https://github.com/craftsamo"
+    "url": "https://github.com/craft-agent"
   },
-  "homepage": "https://github.com/craftsamo/agent-tool-starter#readme",
-  "repository": "https://github.com/craftsamo/agent-tool-starter",
+  "homepage": "https://github.com/craft-agent/web3-tools#readme",
+  "repository": "https://github.com/craft-agent/web3-tools",
   "license": "LicenseRef-AGPL-3.0-Commons-Clause",
   "mcpServers": {
-    "agent-tool-starter": {
+    "web3-tools": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.js"]
     }

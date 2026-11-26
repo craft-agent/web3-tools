@@ -4,12 +4,6 @@ The rules every tool in this package follows, so tools read alike across
 domains and harnesses. Each rule carries the reason it was chosen; a change
 to a rule changes this file first, with its reason.
 
-<!-- starter -->
-
-A project made from the starter keeps these rules and adds its own below them.
-
-<!-- /starter -->
-
 ## Names
 
 - **Tool IDs are `<prefix>_<domain>_<verb>`**: `<prefix>_note_read` and
@@ -17,6 +11,10 @@ A project made from the starter keeps these rules and adds its own below them.
   `src/project.ts`; it keeps a name unambiguous where a harness lists every
   tool in one namespace. When the domain has a well-known command line,
   follow its word order, so a name maps to a command anyone can look up.
+- **Each part starts with a lowercase letter**, followed by lowercase
+  letters and digits, as in `<prefix>_ipv6_read`. Every harness accepts
+  letters, digits and `_` in a tool name; some refuse a name that starts with
+  a digit, which a part's first letter rules out.
 - **The same ID in every entry point.** Permission rules and skills are
   written once, and an ID is a public interface: renaming one is a breaking
   change.
