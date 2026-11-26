@@ -25,6 +25,31 @@ export const SOLANA_KEYPAIR_BASE58 = base58.encode(SOLANA_KEYPAIR)
 /** The same keypair as a JSON array of numbers, the form the Solana CLI writes. */
 export const SOLANA_KEYPAIR_JSON = JSON.stringify([...SOLANA_KEYPAIR])
 
+/** Pieces of the keys above that no result and no error may carry. */
+const KEY_FRAGMENTS = [
+  HARDHAT_PHRASE,
+  ABANDON_PHRASE,
+  HARDHAT_KEY_0.slice(2),
+  SOLANA_KEYPAIR_BASE58,
+  SOLANA_KEYPAIR_JSON,
+]
+
+/** Whether `value`, serialized, or an error's name, message, cause and details, hold any piece of the keys above. */
+export function holdsKeyMaterial(value: unknown): boolean {
+  const parts =
+    value instanceof Error
+      ? [
+          value.name,
+          value.message,
+          JSON.stringify(value),
+          String(value.cause),
+          JSON.stringify(Reflect.get(value, "details")),
+        ]
+      : [JSON.stringify(value)]
+  const text = parts.join("\n")
+  return KEY_FRAGMENTS.some((fragment) => text.includes(fragment))
+}
+
 /** The mode of a directory only its owner can use. */
 const PRIVATE_DIR_MODE = 0o700
 
