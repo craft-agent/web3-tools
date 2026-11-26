@@ -9,6 +9,7 @@ provides_tools:
   - web3_grant_read
   - web3_grant_revoke
   - web3_solana_read
+  - web3_wallet_read
 provides_hooks:
   - pre_tool_call
 config_schema:

@@ -183,6 +183,14 @@ On by default. Lists supported Solana clusters and the provider each would use w
 | ------------------ | --------------------------------------------- | ----- |
 | `web3_solana_read` | `chains`: list clusters and their native coin | read  |
 
+### Wallets (`wallet`)
+
+On by default. Lists the wallets the tools can sign with and their addresses without a request.
+
+| Tool               | What it does                                             | Class |
+| ------------------ | -------------------------------------------------------- | ----- |
+| `web3_wallet_read` | `list`: wallets and first addresses; `accounts`: a range | read  |
+
 ### Grants (`grants`)
 
 Off by default. Delegates bounded writes for jobs where no person can answer.
@@ -380,6 +388,19 @@ secrets; use the file under Codex, which forwards no variable whose name
 depends on a label. Only a labelled wallet sends, and any address can be read
 without one. Keep in a labelled wallet only what you are ready to lose: an
 approved send can move everything it holds.
+
+A person sets up a wallet with either command:
+
+- `web3-tools-cli wallet import [--account <label>]`: reads a seed phrase or
+  private key from standard input, hidden on a terminal.
+- `web3-tools-cli wallet create [--account <label>] [--words 12|24]`: creates a
+  new phrase in the wallet file without displaying it.
+
+Both are create-only: an existing wallet or a set label variable is refused,
+never overwritten. The file is the only copy of a created phrase. Read it
+yourself, never through an agent, and back it up securely before funding the
+wallet. There is no removal command: delete the file by hand only after the
+phrase is backed up. An agent never asks for, reads or repeats a phrase or key.
 
 Each chain is read through its public endpoint unless a provider's key is
 set: `ALCHEMY_API_KEY` for EVM chains and `HELIUS_API_KEY` for Solana.
