@@ -4,9 +4,11 @@ description: "Web3 tools for coding agents: EVM and Solana reads, wallets and se
 manifest_version: 1
 requires_hermes: ">=0.22"
 provides_tools:
+  - web3_evm_read
   - web3_grant_create
   - web3_grant_read
   - web3_grant_revoke
+  - web3_solana_read
 provides_hooks:
   - pre_tool_call
 config_schema:
