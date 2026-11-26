@@ -11,11 +11,11 @@ export const PROJECT = {
   /** Every setting's environment variable is `<envPrefix>_<SETTING>`. */
   envPrefix: "WEB3_TOOLS",
   /** The toolsets, in the order `all` lists them. */
-  toolsets: ["evm", "solana"] as readonly string[],
+  toolsets: ["evm", "solana", "wallet"] as readonly string[],
   /** The toolsets on when a setting names none. */
-  defaultToolsets: ["evm", "solana"] as readonly string[],
+  defaultToolsets: ["evm", "solana", "wallet"] as readonly string[],
   /** The package's own settings, which the tools themselves read: each snake_case name and its type, with bounds when it needs them. */
-  options: {} as Readonly<Record<string, OptionSpec>>,
+  options: { state_dir: "path" } as Readonly<Record<string, OptionSpec>>,
   /** The environment variables the tools read besides the settings, which Codex forwards to the server after them. */
   toolVariables: ["ALCHEMY_API_KEY", "HELIUS_API_KEY"] as readonly string[],
 } as const

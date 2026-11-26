@@ -638,12 +638,28 @@ and every entry point checks them the same way.
   depends on a label. The state root is the `state_dir` path option, by
   default `$XDG_STATE_HOME/web3-tools` when `XDG_STATE_HOME` is absolute, else
   `~/.local/state/web3-tools`, and every directory in it has mode 700.
-- **What a key is decides its family.** A BIP-39 phrase of 12 or 24 English
-  words opens accounts on both families, at `m/44'/60'/0'/0/<index>` for EVM
-  and `m/44'/501'/<index>'/0'` for Solana, the paths MetaMask and Phantom use,
-  so the same words open the same accounts there. A `0x` key of 32 bytes is an
-  EVM key and a base58 secret key of 64 bytes a Solana one; each signs on its
-  own family only.
+- **What a key is decides its family.** A BIP-39 phrase of 12, 15, 18, 21 or
+  24 English words, without a passphrase, opens accounts on both families, at
+  `m/44'/60'/0'/0/<index>` for EVM and `m/44'/501'/<index>'/0'` for Solana,
+  the paths MetaMask and Phantom use, so the same words open the same accounts
+  there. 64 hex digits, with or without `0x`, are an EVM key, and a keypair of
+  64 bytes, as base58 or as a JSON array of numbers, a Solana one; each signs
+  on its own family only. These are the forms wallets export (MetaMask takes
+  every phrase length, Phantom exports base58 and the Solana CLI an array), so
+  a key moves in as it comes out, with no conversion that could expose it.
+- **The file is read through one descriptor opened without following a link**,
+  and refused as `forbidden` when it is a link, not a regular file, owned by
+  another user, or readable or writable by anyone else. Checking a path and
+  then reading it would let the file change in between.
+- **A wallet is set up only by commands a person runs, never by a tool.**
+  `wallet import` reads a key from standard input, hidden on a terminal, and
+  `wallet create` makes a new phrase from the OS's randomness that no one ever
+  sees. Both write create-only, so an existing label is refused and never
+  overwritten, and both refuse while the label's variable is set, since that
+  file would never be read. An agent that could add wallets could also be
+  steered into making one to receive funds. There is no command that removes a
+  wallet: its file may be the only copy of its words, so a person deletes it
+  by hand.
 - **`account` picks the sender**: a label, with `#<index>` for an account of
   a seed (`main#3`); index 0 when it is left out. Left out entirely, it picks
   the only label; with several, the call fails as `invalid_argument` and lists

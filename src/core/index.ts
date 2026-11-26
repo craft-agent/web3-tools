@@ -21,6 +21,7 @@ export {
   type GrantRefusal,
 } from "./grant"
 export { isWithin } from "./paths"
+export { requireRuntime, type ToolRuntime } from "./runtime"
 export { ANY_TARGET, writeTargets } from "./targets"
 export {
   REQUIRES_USER_INTERACTION,
