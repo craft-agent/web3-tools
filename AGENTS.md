@@ -29,7 +29,21 @@ tagged `v<version>`; consumers pin a tag or the same npm version.
   descriptions or messages; the project's names reach it only through the
   entry points. It uses `node:*` modules only, never a runtime's own globals,
   so it runs on Node and Bun.
-
+- **Only the signer reads keys.** No other module opens a wallet file or reads
+  `WEB3_TOOLS_WALLET_*`, and no string the signer returns or throws carries a
+  seed, a key or a signed transaction. Masking cannot stand in for this: a
+  transaction hash has the shape of an EVM key.
+- **Nothing a call signs comes from the caller as bytes.** Each write builds
+  one fixed call per kind, and every system contract comes from the chain
+  table; adding calldata, a program or an instruction to an argument opens
+  every contract to the agent.
+- **A write's description never carries a value that moves with the market**
+  (a balance, a gas price, a mid price): it would fail every call as `stale`.
+  Such a value is an argument (`max_fee`, an order's worst price) that the
+  tool checks.
+- **The ledger row comes before the broadcast**, and a hash the ledger has
+  seen is never broadcast again; reordering them sends funds twice after a
+  crash.
 - **Tool IDs are a public interface.** Permission rules and skills key on them
   (`<prefix>_<domain>_<verb>`); renaming one is a breaking change.
 - **A tool's write class is its contract with the harness.** The class sets

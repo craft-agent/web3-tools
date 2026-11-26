@@ -339,18 +339,36 @@ with; see [Settings](#settings) before changing the job's variables.
 Every entry point takes the same settings. A flag wins over its environment
 variable, and an option or setting wins over the variable too.
 
-| Setting           | Flag              | Variable                   | Meaning                                                                                                                   |
-| ----------------- | ----------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `toolsets`        | `--toolsets`      | `WEB3_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names                                                  |
-| `read_only`       | `--read-only`     | `WEB3_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                                                              |
-| `unattended`      | `--unattended`    | `WEB3_TOOLS_UNATTENDED`    | no person can answer: a write runs only under a grant that covers it; off by default                                      |
-| `grants_dir`      | `--grants-dir`    | `WEB3_TOOLS_GRANTS_DIR`    | where grants and their use are kept; default `$XDG_STATE_HOME/web3-tools/grants`, else `~/.local/state/web3-tools/grants` |
-| `tools`           | `--tools`         | `WEB3_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                                                         |
-| `exclude_tools`   | `--exclude-tools` | `WEB3_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                                                            |
-| `confirm`         | `--confirm`       | `WEB3_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say                                             |
-| `language`        | `--language`      | `WEB3_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                                                         |
-| `emoji`           | —                 | —                          | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none)                                         |
-| `require_plugins` | —                 | —                          | Hermes only: the plugins that must be loaded; while one is not, every write is refused before it is approved              |
+| Setting           | Flag               | Variable                    | Meaning                                                                                                                   |
+| ----------------- | ------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `toolsets`        | `--toolsets`       | `WEB3_TOOLS_TOOLSETS`       | the toolsets that are on, or `all`; default those `src/project.ts` names                                                  |
+| `read_only`       | `--read-only`      | `WEB3_TOOLS_READ_ONLY`      | registers no tool that writes; wins over every other setting                                                              |
+| `unattended`      | `--unattended`     | `WEB3_TOOLS_UNATTENDED`     | no person can answer: a write runs only under a grant that covers it; off by default                                      |
+| `grants_dir`      | `--grants-dir`     | `WEB3_TOOLS_GRANTS_DIR`     | where grants and their use are kept; default `$XDG_STATE_HOME/web3-tools/grants`, else `~/.local/state/web3-tools/grants` |
+| `tools`           | `--tools`          | `WEB3_TOOLS_TOOLS`          | single tools to add by ID, whatever their toolset                                                                         |
+| `exclude_tools`   | `--exclude-tools`  | `WEB3_TOOLS_EXCLUDE_TOOLS`  | single tools to remove by ID; wins over `tools` and `toolsets`                                                            |
+| `confirm`         | `--confirm`        | `WEB3_TOOLS_CONFIRM`        | MCP server only: `harness` (default) or `elicitation`, as the conventions say                                             |
+| `language`        | `--language`       | `WEB3_TOOLS_LANGUAGE`       | native plugins only: the approval prompt's language, such as `ja`                                                         |
+| `emoji`           | —                  | —                           | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none)                                         |
+| `require_plugins` | —                  | —                           | Hermes only: the plugins that must be loaded; while one is not, every write is refused before it is approved              |
+| `state_dir`       | `--state-dir`      | `WEB3_TOOLS_STATE_DIR`      | every wallet's file and the ledger; default `$XDG_STATE_HOME/web3-tools`, else `~/.local/state/web3-tools`                |
+| `sends_per_hour`  | `--sends-per-hour` | `WEB3_TOOLS_SENDS_PER_HOUR` | the most writes of every wallet together in an hour; unset by default, for no limit                                       |
+
+### Wallets and providers
+
+A wallet is a label, and its seed phrase or private key comes from
+`WEB3_TOOLS_WALLET_<LABEL>` (`WEB3_TOOLS_WALLET_DEFAULT` for `default`) or,
+without it, from the file `<state_dir>/accounts/<label>/wallet` that the
+package's own commands write. Fill the variable from wherever you keep
+secrets; use the file under Codex, which forwards no variable whose name
+depends on a label. Only a labelled wallet sends, and any address can be read
+without one. Keep in a labelled wallet only what you are ready to lose: an
+approved send can move everything it holds.
+
+Each chain is read through its public endpoint unless a provider's key is
+set: `ALCHEMY_API_KEY` for EVM chains, `HELIUS_API_KEY` for Solana and
+`ETHERSCAN_API_KEY` for verified contract sources. Codex forwards them with
+the settings' variables.
 
 `WEB3_TOOLS_GRANT_KEY` is a variable only, never a flag or a plugin
 option. Use at least 32 characters, for example from `openssl rand -hex 32`,

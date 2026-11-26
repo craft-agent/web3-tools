@@ -590,3 +590,200 @@ and every entry point checks them the same way.
   against a fake of that program on `PATH`.
 - A test file stays within about 300 lines, split by topic
   (`<name>.<topic>.test.ts`), so one commit can carry a change and its test.
+
+## Chains and providers
+
+- **Chains come from one fixed table and are named by its key** (`ethereum`,
+  `base`, `sepolia`, `solana`, `solana-devnet`); Hyperliquid's two venues are
+  `mainnet` and `testnet`. A caller never passes a URL, a chain id or a
+  contract address for the chain itself, so a call cannot be pointed at an
+  endpoint or a contract that pretends to be the chain's.
+- **Every call names its chain or network; none has a default.** A figure
+  from a testnet is never evidence about its mainnet, and a default would make
+  the same call mean different things on different machines.
+- **Each EVM chain carries the fee model it charges beyond gas** (an L1 data
+  fee, an operator fee), so a fee ceiling covers what the chain will really
+  take.
+- **Every system contract comes from the table**: a chain's USDC, Circle's
+  CCTP contracts, Hyperliquid's bridge. A token a call sends is named by its
+  address; nothing else a call signs is chosen by the caller.
+- **A chain is reached through its public endpoint, or a provider when its
+  key is set**: `ALCHEMY_API_KEY` for EVM chains, `HELIUS_API_KEY` for Solana
+  and `ETHERSCAN_API_KEY` for verified contract sources, the names those
+  providers' own tools read, so an environment set up for them works as it
+  is. They are named in `toolVariables`.
+- **A provider URL carries its key, so no URL is ever shown.** Errors name
+  the chain and the provider only, and every string a client returns or
+  throws has the provider keys masked.
+- **Every request goes through one client per family**, as every program
+  goes through one runner: the endpoint from the table, no redirect followed
+  (a redirect would carry the key elsewhere), a time limit with cancellation,
+  and failures mapped to the error codes above. A tool never calls `fetch`
+  itself.
+
+## Wallets and keys
+
+- **One label is one wallet: a seed phrase or a private key.** A label is 1 to
+  24 lowercase letters, digits and `_`, starting and ending with a letter or a
+  digit; `default` when none is given. A label is also a directory name and
+  part of a variable's name, so the set is kept to what both take as it is.
+- **A key comes from the environment first.** `WEB3_TOOLS_WALLET_<LABEL>`
+  (`WEB3_TOOLS_WALLET_DEFAULT` for `default`) is used when it is set, and the
+  package then stores nothing; otherwise the label's file
+  (`<state root>/accounts/<label>/wallet`, mode 600, a regular file and no
+  link), which the package's own commands write from standard input or from a
+  new phrase. How the variable is filled (a keychain, a password manager, a
+  service manager's credentials) is the user's choice; the file works where
+  nothing injects it, Codex included, which forwards no variable whose name
+  depends on a label. The state root is the `state_dir` path option, by
+  default `$XDG_STATE_HOME/web3-tools` when `XDG_STATE_HOME` is absolute, else
+  `~/.local/state/web3-tools`, and every directory in it has mode 700.
+- **What a key is decides its family.** A BIP-39 phrase of 12 or 24 English
+  words opens accounts on both families, at `m/44'/60'/0'/0/<index>` for EVM
+  and `m/44'/501'/<index>'/0'` for Solana, the paths MetaMask and Phantom use,
+  so the same words open the same accounts there. A `0x` key of 32 bytes is an
+  EVM key and a base58 secret key of 64 bytes a Solana one; each signs on its
+  own family only.
+- **`account` picks the sender**: a label, with `#<index>` for an account of
+  a seed (`main#3`); index 0 when it is left out. Left out entirely, it picks
+  the only label; with several, the call fails as `invalid_argument` and lists
+  them.
+- **Only a labelled wallet sends.** Any other address is only read, and reading
+  needs no key, so a wallet the user only watches is not set up at all. A write
+  whose sender has no key here is refused by its `gate`, before anyone is
+  asked.
+- **The user's own addresses are computed from the keys on each call**:
+  accounts 0 to 100 of every seed on both families, and every key's address.
+  They are never taken from an argument or from a file a caller can write, so a
+  call cannot make a stranger's address look like the user's.
+- **A key is never an argument, a setting or a tool's input.** A harness shows
+  and logs a call's arguments, and settings land in configuration files.
+
+## The signer
+
+- **One module reads keys, and it is the only one that signs.** Tools, the
+  ledger and the Hyperliquid trader ask it for addresses and signatures; a key
+  is read for the call that needs it and dropped when that call ends.
+- **No seed, key or signed transaction reaches a result, an error, a log, a
+  command line or a file** other than the label's own. A transaction is
+  reported by its hash. Keys cannot be masked by their shape, since a
+  transaction hash has the shape of an EVM key, so the signer keeps them from
+  ever reaching a string: an error raised while it holds a key is replaced by
+  a fixed message naming the step that failed.
+- **A key that cannot be read is `unauthenticated` and a key file anyone else
+  can reach is `forbidden`**; neither message quotes any part of it.
+
+## Writes
+
+- **No write signs calldata, a program or an instruction from a caller.** Each
+  kind of write builds one fixed call (a native transfer, ERC-20 `transfer`, an
+  SPL `transferChecked`, a revoke, a venue action), so what is signed is always
+  one the package knows how to describe.
+- **A write's arguments are the whole change.** They name the sender, the
+  recipient, the token by address, the amount in the token's units as a
+  decimal string, and the ceilings below; nothing is chosen at run time from
+  the current state. An amount more precise than the token is refused, never
+  rounded.
+- **What moves with the market is an argument, never computed.** A fee
+  ceiling and an order's worst price change with every block, and a
+  description built from them would change between the prompt and the run,
+  failing every such call as `stale`. So the call carries them, the prompt
+  shows them, and the tool checks them against the market and refuses one
+  that cannot work.
+- **A write that pays a fee takes `max_fee`**, in the chain's smallest unit
+  (wei, lamports), as a decimal string of digits. `describe` refuses one below
+  what the network asks now, and `execute` signs with fees capped by it and
+  fails as `stale`, sending nothing, when the network asks for more.
+- **There is no preview step.** `describe` builds and simulates the exact
+  transaction or action with the code `execute` runs, so it cannot promise a
+  send the call would not make, and a call the chain would revert is refused
+  there with the chain's reason. `pins` hold what is signed (chain, sender,
+  recipient, value, the call's data, the action), so a call whose transaction
+  changed since its prompt fails as `stale` without sending. Nonces, gas limits
+  and blockhashes are taken in `execute` and are not pinned, since they are not
+  what the person decides on.
+- **The recipient that counts is the one encoded in the call**, not a
+  transaction's `to`: for a token, the recipient in the calldata or the
+  instruction's owner. An ENS name is resolved when the prompt is drawn, and
+  the prompt shows the name and the address it resolved to.
+- **Every write asks, a send to the user's own wallet included.** The prompt
+  says when the recipient is one of the user's own, and `targets` name the
+  sender and the recipient, so an "always" answer covers that pair only.
+- **A write that moves funds out of a wallet or can add exposure is
+  administrative**, so Claude Code asks for it even under an allow rule. A
+  write that can only lower exposure (a cancel, a reduce-only order) is a tool
+  of its own and may take a lower class; a harness that remembers an approval
+  for a tool would otherwise carry it over to a harmful call.
+- **A write returns what it sent**: the hash or order ids, the outcome and the
+  ledger row's id. Nothing after the broadcast turns the reply into an error:
+  a failed read while waiting reports `pending`.
+
+## The ledger
+
+- **Every write is a row in the ledger before it is broadcast**
+  (`<state root>/ledger/`, one file of rows, written under a lock held from the
+  checks through the broadcast, so two calls never race). The row is written as
+  `unknown` with the hash the signed transaction will have, then gets its
+  outcome: `confirmed`, `failed` (landed but reverted, so the fee was spent),
+  `pending` or `rejected` (the network refused it, so nothing moved). A crash
+  between the row and the broadcast then never sends twice.
+- **A hash the ledger has seen is never broadcast again.**
+- **A sender with an `unknown` or `pending` row sends nothing else** on that
+  chain until the row is resolved: the next write from it looks the hash up
+  first, and refuses as `stale`, naming the hash, while the chain still does
+  not say. A retry after a lost answer would otherwise send the same funds
+  twice under a fresh nonce.
+- **A row holds no secret**: the chain, the sender, the recipient, the kind,
+  the amount, the hash, the outcome and when.
+- **`sends_per_hour` caps the writes of every label together.** It is an
+  option, unset by default, counting `unknown`, `pending`, `confirmed` and
+  `failed` rows of the last 60 minutes; a call past it is `rate_limited`. A
+  person who wants a loop to stop draining fees sets it; a grant's rate bounds
+  the writes that run unattended.
+
+## Approval prompts
+
+A native plugin's prompt follows "Write classes"; these are the rules this
+package adds to it.
+
+- **The facts lead with what decides the answer**: the recipient that counts,
+  then whether it is one of the user's own wallets, then the token, then the
+  amount and the fee ceiling. The sender is a target.
+- **Addresses are shown whole**, in checksum case on EVM, since address
+  poisoning forges look-alike prefixes and suffixes.
+- **A token is named by its address, with the symbol it declares quoted**: a
+  symbol is chosen by whoever deployed the token.
+- **Every fact is stable for the same transaction**: no balance, price
+  estimate or gas price, which change with every block and would fail the call
+  as `stale`. A read gives those beforehand.
+- **The facts of this package** are listed here with the tools that use them,
+  as each domain ships.
+
+## Grants
+
+- **Every write tool declares the bounds a grant can limit**, settled with
+  its domain: the chain, the token, the recipient, the amount and the fee
+  ceiling for a send (in smallest units, since a `max` bound is a whole
+  number), and the markets, an order's notional, reduce-only and the leverage
+  for an order. A person delegates Hyperliquid orders this way, with no
+  mechanism of the package's own.
+
+## Text read from chains and the venue
+
+- **Returned as it is.** Token names and symbols, memos, revert strings,
+  NatSpec, IDL descriptions and builder dex names are chosen by strangers:
+  every read tool's description and skill say they are data, never
+  instructions, and nothing in them is followed.
+- **What a read did not cover is named**, never silently dropped: log ranges
+  not read, contract state not read, a fee part not read, fills beyond one
+  read. A result that looks complete is read as complete.
+
+## Toolsets
+
+- **One per domain: `evm`, `solana`, `hyperliquid` and `wallet`.** A family's
+  read tool lists its chains (method `chains`), so the chain table needs no
+  toolset of its own.
+- **`evm`, `solana` and `wallet` are on by default**; `hyperliquid` trades, so
+  it is one setting away.
+- **Tool IDs are `web3_<domain>_<verb>`**, within 40 characters:
+  `web3_evm_read`, `web3_wallet_read`.
