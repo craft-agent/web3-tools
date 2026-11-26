@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { ToolError, isAbortError, isToolError } from "./errors"
 import { finishGrantUse, grantCheck, type GrantContext } from "./grant/guard"
+import type { ToolRuntime } from "./runtime"
 import { PATTERN_CHARACTERS } from "./targets"
 
 /** The toolsets of a package: every name, in the order `all` lists them, and the ones on when a setting names none. */
@@ -75,6 +76,8 @@ export type ToolContext = {
   grants?: GrantContext
   /** Where every wallet's file and the ledger live: an absolute path the entry point resolved. */
   stateDir?: string
+  /** The package's identity and environment, which the entry point supplied. */
+  runtime?: ToolRuntime
 }
 
 /**
