@@ -108,6 +108,15 @@ function accountsOf(key: WalletKey, label: string, range: AccountRange): Account
   })
 }
 
+/** Account 0 of `key`: index 0 on both families for a seed phrase, the one address of a lone key. */
+export function firstAccount(key: WalletKey, label: string): Account {
+  const [account] = accountsOf(key, label, { from: 0, count: 1 })
+  if (account === undefined) {
+    throw new ToolError("internal_error", `The signer found no account for wallet "${label}".`)
+  }
+  return account
+}
+
 function checkRange({ from, count }: AccountRange): void {
   const last = from + count - 1
   if (!Number.isInteger(from) || !Number.isInteger(count) || from < 0 || count < 1 || last > MAX_ACCOUNT_INDEX) {
