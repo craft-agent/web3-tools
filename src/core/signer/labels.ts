@@ -78,7 +78,7 @@ export function errnoCode(error: unknown): string | undefined {
 }
 
 /** Whether `error` says the path, or a directory above it, does not exist. */
-function isMissingPath(error: unknown): boolean {
+export function isMissingPath(error: unknown): boolean {
   const code = errnoCode(error)
   return code === "ENOENT" || code === "ENOTDIR"
 }
