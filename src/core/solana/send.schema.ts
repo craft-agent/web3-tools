@@ -16,8 +16,10 @@ export const sendInput = z.object({
     .describe(
       "The recipient: the owner's wallet address in base58, never a token account; its token account is found or made.",
     ),
-  mint: z.string().optional().describe("The token mint's address in base58; left out, SOL."),
-  amount: z.string().describe("How much, as a decimal string in the token's own units, such as 1.5; never rounded."),
+  mint: z.string().optional().describe("The token mint's address in base58, or a plain NFT's; left out, SOL."),
+  amount: z
+    .string()
+    .describe("How much, as a decimal string in the token's own units, such as 1.5; never rounded. For an NFT, 1."),
   max_fee: z
     .string()
     .describe(
@@ -34,7 +36,8 @@ export const sendOutput = z.object({
   from: z.string().describe("The sender's address."),
   to: z.string().describe("The recipient's wallet address."),
   mint: z.string().nullable().describe("The token mint's address; null for SOL."),
-  amount: z.string().describe("The amount sent, in the token's units."),
+  nft: z.boolean().describe("Whether what was sent is a plain NFT."),
+  amount: z.string().describe("The amount sent, in the token's units; 1 for an NFT."),
   symbol: z.string().nullable().describe("SOL, or the token's declared symbol; null when it has none to show."),
   slot: z.string().nullable().describe("The slot the transaction landed in; null while pending."),
   explorer: z.string().describe("The transaction's page on the cluster's block explorer."),

@@ -40,6 +40,9 @@ const AMOUNT_PATTERN = /^\d{1,20}$/
 
 const MAX_DECIMALS = 255
 
+/** What a refusal adds about an address that is no token mint, for the asset that never has one. */
+const NO_SPL_MINT = "a compressed NFT or a Core asset has no SPL mint and is not sent"
+
 const amountSchema = z.string().regex(AMOUNT_PATTERN)
 
 const extensionsSchema = z
@@ -82,7 +85,7 @@ export async function mintFacts(client: JsonRpcClient, mint: string): Promise<Mi
   const account = await accountOf(client, mint)
   const notAMint = new ToolError(
     "invalid_argument",
-    `The address ${mint} on ${client.name} is not a token mint: ${account === null ? "no account is there" : "the account is not a Token or Token-2022 mint"}.`,
+    `The address ${mint} on ${client.name} is not a token mint: ${account === null ? "no account is there" : "the account is not a Token or Token-2022 mint"}; ${NO_SPL_MINT}.`,
   )
   if (account === null || !isTokenOwned(account)) throw notAMint
   if (account.parsed === undefined) throw unreadable(client, METHOD, "a parsed token account")

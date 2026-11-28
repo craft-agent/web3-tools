@@ -202,12 +202,13 @@ On by default. Lists supported EVM chains and the provider each would use withou
 
 ### Solana (`solana`)
 
-On by default. Lists supported Solana clusters and the provider each would use without a request, and sends SOL and SPL tokens from a labelled wallet.
+On by default. Lists supported Solana clusters and the provider each would use without a request, sends SOL, SPL tokens and plain NFTs from a labelled wallet, and revokes the delegate of a token account.
 
-| Tool               | What it does                                                                                                             | Class          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------- |
-| `web3_solana_read` | `chains`: list clusters and their native coin                                                                            | read           |
-| `web3_solana_send` | Send SOL or an SPL token (Token, Token-2022) to a wallet address under a `max_fee` ceiling in lamports; waits up to 20 s | administrative |
+| Tool                 | What it does                                                                                                                          | Class          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `web3_solana_read`   | `chains`: list clusters and their native coin                                                                                         | read           |
+| `web3_solana_send`   | Send SOL, an SPL token (Token, Token-2022) or a plain NFT to a wallet address under a `max_fee` ceiling in lamports; waits up to 20 s | administrative |
+| `web3_solana_revoke` | Revoke the delegate of the wallet's associated token account for a mint under a `max_fee` ceiling in lamports; waits up to 20 s       | idempotent     |
 
 #### Sending on Solana
 

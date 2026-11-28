@@ -10,7 +10,7 @@ export const SEND_BOUNDS: ToolBounds = {
     kind: "prefix",
     separator: PATH_SEPARATOR,
     description:
-      "The clusters and tokens a send may use: <chain> for any asset on it, <chain>/native for SOL, or <chain>/<mint address> for one token, as written in base58.",
+      "The clusters and tokens a send may use: <chain> for any asset on it, <chain>/native for SOL, or <chain>/<mint address> for one token or NFT, as written in base58.",
   },
   recipient: {
     kind: "prefix",
@@ -19,7 +19,7 @@ export const SEND_BOUNDS: ToolBounds = {
   },
   amount: {
     kind: "max",
-    description: "The most a send may move, in the asset's smallest unit (lamports for SOL).",
+    description: "The most a send may move, in the asset's smallest unit (lamports for SOL, 1 for an NFT).",
   },
   max_fee: { kind: "max", description: "The highest max_fee a send may give, in lamports." },
 }
