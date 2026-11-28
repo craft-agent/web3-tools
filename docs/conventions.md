@@ -605,8 +605,10 @@ and every entry point checks them the same way.
   fee, an operator fee), so a fee ceiling covers what the chain will really
   take.
 - **Every system contract comes from the table**: a chain's USDC, Circle's
-  CCTP contracts, Hyperliquid's bridge. A token a call sends is named by its
-  address; nothing else a call signs is chosen by the caller.
+  CCTP contracts, Hyperliquid's bridge, and Solana's programs (System, SPL
+  Token, Token-2022, Associated Token Account, Compute Budget, Token
+  Metadata). A token a call sends is named by its address; nothing else a
+  call signs is chosen by the caller.
 - **A chain is reached through its public endpoint, or a provider when its
   key is set**: `ALCHEMY_API_KEY` for EVM chains, `HELIUS_API_KEY` for Solana
   and `ETHERSCAN_API_KEY` for verified contract sources, the names those
@@ -744,6 +746,41 @@ and every entry point checks them the same way.
 - **A write returns what it sent**: the hash or order ids, the outcome and the
   ledger row's id. Nothing after the broadcast turns the reply into an error:
   a failed read while waiting reports `pending`.
+
+## Solana writes
+
+- **A Solana write is a legacy message the package encodes and signs
+  itself**, from the fixed instructions of its kind and the programs in the
+  table: a System transfer; SPL `TransferChecked` under the mint's own program
+  (Token or Token-2022) from the sender's associated token account to the
+  recipient's, which `CreateIdempotent` makes when it is missing; SPL
+  `Revoke`; and the compute budget. Its first signature is its id, known
+  before it is sent.
+- **The recipient is a wallet**: an account the System Program owns, or an
+  on-curve address with no account yet. A program, a token account, a mint,
+  an account another program owns, a nonce account and an off-curve address
+  with no account are refused: SOL sent to them may be stuck, and a token
+  account created for an address no one can sign for is lost.
+- **Rent is read on every call**, never fixed, since the network lowers it.
+  SOL that would leave a new account below the rent-exempt minimum, or the
+  sender between 0 and it, is refused; the rent of a token account a send
+  creates is a fact of the prompt.
+- **A token whose extensions change the transfer is refused**: a Token-2022
+  transfer fee, transfer hook, non-transferable mint, confidential transfers,
+  a memo the destination requires, new accounts frozen by default, or a paused
+  mint. The person would be told one amount while the chain moved another, or
+  a stranger's program would run. Display-only extensions are sent, and a
+  permanent delegate, which can move any holder's tokens, is named in the
+  prompt.
+- **An NFT is sent only when it is a plain one**, read from its Metaplex
+  metadata on-chain: a programmable NFT must move through Token Metadata's own
+  instruction, and compressed and Core assets have no SPL mint. No indexer
+  decides what is signed.
+- **The fee is the base fee and a priority fee**, within `max_fee` in
+  lamports: the compute-unit limit is what simulation consumed plus a tenth,
+  and its price comes from recent prioritization fees. The blockhash and the
+  compute budget are taken in `execute` and not pinned; the other
+  instructions are.
 
 ## The ledger
 
