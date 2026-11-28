@@ -23,13 +23,14 @@ import { openRowState } from "./send.lookup"
 import type { SolanaSendArgs } from "./send.schema"
 
 /** The bytes of an account that holds no data: a wallet, whose rent-exempt minimum a wallet is kept at. */
-const WALLET_BYTES = 0
+export const WALLET_BYTES = 0
 
 function refusal(message: string): ToolError {
   return new ToolError("invalid_argument", message)
 }
 
-function coin(env: SendEnv, lamports: bigint): string {
+/** An amount of the native coin as the refusals say it: its lamports, and the coin. */
+export function coin(env: Pick<SendEnv, "chain">, lamports: bigint): string {
   return `${lamports} lamports (${formatAmount(lamports, env.chain.native.decimals)} ${env.chain.native.symbol})`
 }
 
@@ -68,7 +69,7 @@ function checkRoom(env: SendEnv, plan: SendPlan, held: bigint, keep: bigint, acc
   const spent = kind === "sol" ? units : 0n
   if (held - spent - accountRent - maxFee >= keep) return
   const base = `${sender.address} holds ${coin(env, held)} on ${env.chain.name}, and a wallet is never left below the ${coin(env, keep)} that keeps it open (the rent-exempt minimum).`
-  if (kind === "spl") {
+  if (kind !== "sol") {
     const rent =
       accountRent > 0n ? ` and ${accountRent} lamports of rent for the token account created for the recipient` : ""
     throw refusal(`${base} ${fee}${rent} would leave it below that. Add SOL or give a smaller max_fee.`)

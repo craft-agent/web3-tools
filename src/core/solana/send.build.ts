@@ -25,9 +25,9 @@ import {
 } from "./instructions"
 import type { SolanaMessage } from "./message"
 import { accountOf, classifyRecipient, type RecipientKind } from "./reads"
-import { metadataFacts, mintFacts, tokenAccountFacts } from "./reads.token"
+import { metadataFacts, mintFacts, tokenAccountFacts, type MintFacts } from "./reads.token"
 import type { SolanaSendArgs } from "./send.schema"
-import { checkTransferable, tokenPromptSymbol } from "./token-rules"
+import { checkPlainNft, checkTransferable, isFungibleStandard, tokenPromptSymbol } from "./token-rules"
 
 /** What a send reaches the cluster and the wallets through: the cluster, a client for it, and the call's runtime and state directory. */
 export type SendEnv = {
@@ -37,8 +37,11 @@ export type SendEnv = {
   stateDir: string
 }
 
-/** What a send moves: SOL, or an SPL token. */
-export type SendKind = "sol" | "spl"
+/** What a send moves: SOL, an SPL token, or a plain NFT, which is one unit of a mint with no decimals and a supply of 1. */
+export type SendKind = "sol" | "spl" | "nft"
+
+/** The amount of an NFT send, and the supply of an NFT's mint. */
+const NFT_UNITS = 1n
 
 /** The part of a write that is signed and recorded, whichever tool built it. */
 export type LockedPlan = {
@@ -59,7 +62,7 @@ export type SendPlan = {
   /** Whether the recipient has no account yet. */
   recipientIsNew: boolean
   kind: SendKind
-  /** The token mint; `null` for SOL. */
+  /** The token mint; `null` for SOL, and never `null` for a token or an NFT. */
   mint: string | null
   /** The token account the instructions make for the recipient, because it is missing now; `null` when none is made. */
   createdAccount: string | null
@@ -162,10 +165,29 @@ function buildSolSend(chain: SolanaChain, base: SendBase, amount: string): SendP
   }
 }
 
+/** Whether a mint has the shape of an NFT: no decimals and a supply of 1. Its metadata says whether it is one. */
+function isNftShaped({ decimals, supply }: MintFacts): boolean {
+  return decimals === 0 && supply === NFT_UNITS
+}
+
+/** The units of an NFT send: `amount` must be 1, as a whole NFT cannot be split. */
+function nftUnits(amount: string): bigint {
+  const units = parseAmount(amount, 0)
+  if (units !== NFT_UNITS) throw refusal(`An NFT is sent whole: amount must be "${NFT_UNITS}".`)
+  return units
+}
+
+/**
+ * A mint of the shape of an NFT is read for its metadata: a plain one is sent as an NFT, a programmable one refused,
+ * and one whose standard is fungible is sent as a token like any other.
+ */
 async function buildTokenSend({ client }: SendEnv, base: SendBase, mint: string, amount: string): Promise<SendPlan> {
   const { sender, recipient } = base
   const facts = await mintFacts(client, mint)
-  const units = parseAmount(amount, facts.decimals)
+  const nftMetadata = isNftShaped(facts) ? await metadataFacts(client, mint) : undefined
+  const isNft = nftMetadata !== undefined && !isFungibleStandard(nftMetadata)
+  if (isNft) checkPlainNft(facts, nftMetadata)
+  const units = isNft ? nftUnits(amount) : parseAmount(amount, facts.decimals)
   const sourceAccount = associatedTokenAddress(sender.address, mint, facts.program)
   const destinationAccount = associatedTokenAddress(recipient, mint, facts.program)
   const source = await tokenAccountFacts(client, sourceAccount)
@@ -179,14 +201,14 @@ async function buildTokenSend({ client }: SendEnv, base: SendBase, mint: string,
   }
   const destination = await tokenAccountFacts(client, destinationAccount)
   const { permanentDelegate } = checkTransferable(facts, source, destination)
-  const symbol = tokenPromptSymbol(facts, await metadataFacts(client, mint))
+  const symbol = tokenPromptSymbol(facts, nftMetadata === undefined ? await metadataFacts(client, mint) : nftMetadata)
   const instructions = [
     createIdempotentAta(sender.address, destinationAccount, recipient, mint, facts.program),
     transferChecked(facts.program, sourceAccount, mint, destinationAccount, sender.address, units, facts.decimals),
   ]
   return {
     ...base,
-    kind: "spl",
+    kind: isNft ? "nft" : "spl",
     mint,
     createdAccount: destination === null ? destinationAccount : null,
     permanentDelegate,
@@ -200,7 +222,8 @@ async function buildTokenSend({ client }: SendEnv, base: SendBase, mint: string,
 /**
  * The transaction a call to `execute` would sign, from the arguments and the cluster as it stands. The sender has a
  * key here, the recipient is a wallet other than the sender, a token is a mint the token rules allow whose sender
- * holds the amount, and the amount is no more precise than the token: else `invalid_argument`.
+ * holds the amount, the amount is no more precise than the token and an NFT is a plain one sent whole: else
+ * `invalid_argument`.
  */
 export async function buildSend(args: SolanaSendArgs, env: SendEnv): Promise<SendPlan> {
   const { chain, runtime, stateDir } = env

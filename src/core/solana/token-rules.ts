@@ -257,6 +257,12 @@ export function metadataTokenStandard(data: Uint8Array): MetadataFacts {
   return { symbol, tokenStandard: reader.isSome() ? reader.u8() : null }
 }
 
+/** Whether `metadata` declares a fungible standard (`Fungible` or `FungibleAsset`): the mint is a token, whatever its decimals and supply. */
+export function isFungibleStandard(metadata: MetadataFacts | null): boolean {
+  const standard = metadata?.tokenStandard ?? null
+  return standard === TOKEN_STANDARDS.fungibleAsset || standard === TOKEN_STANDARDS.fungible
+}
+
 /**
  * Whether the mint is a plain NFT, one that moves with an ordinary token transfer: 0 decimals, a supply of 1 and a
  * token standard of `NonFungible` or `NonFungibleEdition`, or none (`metadata` is `null`, or the account predates the
@@ -265,7 +271,7 @@ export function metadataTokenStandard(data: Uint8Array): MetadataFacts {
  */
 export function checkPlainNft(mint: MintFacts, metadata: MetadataFacts | null): void {
   const standard = metadata?.tokenStandard ?? null
-  if (standard === TOKEN_STANDARDS.fungibleAsset || standard === TOKEN_STANDARDS.fungible) {
+  if (isFungibleStandard(metadata)) {
     throw new ToolError("invalid_argument", "This is a fungible token, not an NFT; send it as a token.")
   }
   if (mint.decimals !== 0 || mint.supply !== 1n) {

@@ -54,6 +54,7 @@ describe("a SOL send", () => {
       from: MAIN_ADDRESS,
       to: BOB,
       mint: null,
+      nft: false,
       amount: "1.5",
       symbol: "SOL",
       slot: "2001",

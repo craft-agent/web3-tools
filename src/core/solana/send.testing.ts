@@ -9,6 +9,7 @@ import type { sendOutput } from "./send.schema"
 import { testAddress } from "./testing"
 import { FakeSolanaCluster, type LandedTransaction } from "./testing.cluster"
 import { decodeTransaction } from "./testing.cluster.tx"
+import { TOKEN_STANDARDS } from "./token-rules"
 
 export { cleanRigs, expectRefused, NOW } from "../write/testing"
 
@@ -20,6 +21,9 @@ export const MAIN_ADDRESS = base58.encode(ed25519.getPublicKey(new Uint8Array(32
 /** A wallet with no account yet, and a token mint the rig knows. */
 export const BOB = testAddress(2)
 export const MINT = testAddress(3)
+
+/** The mint of an NFT that `addNft` puts in a fake. */
+export const NFT_MINT = testAddress(12)
 
 /** A fee ceiling that covers a send with room to spare, in lamports. */
 export const MAX_FEE = "100000"
@@ -54,6 +58,31 @@ export function solArgs(changes: Record<string, unknown> = {}): Record<string, u
 /** The raw arguments of a send of 5 of `MINT` from the wallet `main` to `BOB`. */
 export function tokenArgs(changes: Record<string, unknown> = {}): Record<string, unknown> {
   return solArgs({ mint: MINT, amount: "5", ...changes })
+}
+
+/** The raw arguments of a send of the NFT `NFT_MINT` from the wallet `main` to `BOB`. */
+export function nftArgs(changes: Record<string, unknown> = {}): Record<string, unknown> {
+  return solArgs({ mint: NFT_MINT, amount: "1", ...changes })
+}
+
+/** What `addNft` sets up: the Token Metadata standard (`null` for an account that predates it), and what `main` holds. */
+export type NftInit = {
+  standard?: number | null
+  symbol?: string
+  /** Whether the mint has a Token Metadata account at all. */
+  metadata?: boolean
+  /** The tokens `main` holds of it, in its associated token account; `null` for no account. */
+  held?: bigint | null
+}
+
+/** Puts the NFT `NFT_MINT` in `fake`: a mint with no decimals and a supply of 1, its metadata and what `main` holds. */
+export function addNft(
+  fake: FakeSolanaCluster,
+  { standard = TOKEN_STANDARDS.nonFungible, symbol = "APE", metadata = true, held = 1n }: NftInit = {},
+): void {
+  fake.addMint(NFT_MINT, { decimals: 0, supply: 1n })
+  if (held !== null) fake.addAssociatedTokenAccount(MAIN_ADDRESS, NFT_MINT, { amount: held })
+  if (metadata) fake.addMetadata({ mint: NFT_MINT, symbol, tokenStandard: standard })
 }
 
 /** The signatures of the transactions the rig's fake received, in order. */

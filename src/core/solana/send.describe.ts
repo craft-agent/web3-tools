@@ -10,8 +10,9 @@ import { buildSend, sendEnv, type SendEnv, type SendPlan } from "./send.build"
 import { createdAccountRent } from "./send.gate"
 import type { SolanaSendArgs } from "./send.schema"
 
-/** The headline of a send: what it moves and where. A token with no symbol to show is named by its kind. */
-function headlineOf({ chain, units, decimals, symbol }: SendPlan): CallHeadline {
+/** The headline of a send: what it moves and where. A token with no symbol to show is named by its kind; an NFT, by its mint. */
+function headlineOf({ chain, kind, mint, units, decimals, symbol }: SendPlan): CallHeadline {
+  if (kind === "nft") return { text: "Send NFT {mint} on {chain}", values: { mint: mint!, chain: chain.name } }
   const amount = formatAmount(units, decimals)
   return symbol === null
     ? { text: "Send {amount} of a token on {chain}", values: { amount, chain: chain.name } }
@@ -32,6 +33,11 @@ function tokenFact({ chain, mint, symbol }: SendPlan): CallFact {
         ? { text: "{address}, whose declared symbol is not shown", values: { address: mint } }
         : contractValue(mint, symbol),
   }
+}
+
+/** The NFT a send moves: its mint, with the symbol it declares when a prompt may show it. */
+function nftFact({ mint, symbol }: SendPlan): CallFact {
+  return { label: "NFT", value: contractValue(mint!, symbol) }
 }
 
 function amountFact({ mint, symbol, units, decimals }: SendPlan): CallFact {
@@ -55,7 +61,13 @@ function amountFact({ mint, symbol, units, decimals }: SendPlan): CallFact {
   }
 }
 
-function feeFact({ chain, maxFee }: SendPlan): CallFact {
+/** What a send moves, as facts: the token and the amount, or the NFT alone, whose amount is always 1. */
+function movedFacts(plan: SendPlan): CallFact[] {
+  return plan.kind === "nft" ? [nftFact(plan)] : [tokenFact(plan), amountFact(plan)]
+}
+
+/** The ceiling on the whole fee, as the prompt shows it. */
+export function feeFact({ chain, maxFee }: Pick<SendPlan, "chain" | "maxFee">): CallFact {
   return {
     label: "Max fee",
     value: {
@@ -92,6 +104,21 @@ function instructionPin({ programId, accounts, data }: SolanaInstruction): strin
   return JSON.stringify({ program: programId, accounts, data: bytesToHex(data) })
 }
 
+/** What a description pins of a write: the chain, the sender and each instruction but the compute budget, which is set when the transaction is signed. */
+export function pinsOf({
+  chain,
+  sender,
+  instructions,
+}: Pick<SendPlan, "chain" | "sender" | "instructions">): Record<string, string> {
+  return {
+    chain: chain.key,
+    from: sender.address,
+    ...Object.fromEntries(
+      instructions.map((instruction, index) => [`instruction_${index}`, instructionPin(instruction)]),
+    ),
+  }
+}
+
 /**
  * What a send's prompt names as its targets: the sender and the recipient wallet, so an "always" answer covers that
  * pair only.
@@ -104,9 +131,10 @@ export async function sendTargets(args: SolanaSendArgs, ctx: ToolContext, deps: 
 
 /**
  * What the send will do, for the person approving it: the recipient that counts, whether it is one of the person's
- * own wallets, the token, the amount, a token account it creates, a permanent delegate and the fee ceiling. Nothing
- * that moves with the market is in it, so it is the same for the same transaction; the pins hold what is signed:
- * the chain, the sender and each instruction but the compute budget, which is set when the transaction is signed.
+ * own wallets, the token and the amount (an NFT alone, whose amount is 1), a token account it creates, a permanent
+ * delegate and the fee ceiling. Nothing that moves with the market is in it, so it is the same for the same
+ * transaction; the pins hold what is signed: the chain, the sender and each instruction but the compute budget, which
+ * is set when the transaction is signed.
  */
 export async function describeSend(args: SolanaSendArgs, ctx: ToolContext, deps: RpcDeps): Promise<CallDescription> {
   const env = sendEnv(args.chain, ctx, deps)
@@ -117,17 +145,10 @@ export async function describeSend(args: SolanaSendArgs, ctx: ToolContext, deps:
     facts: [
       { label: "Recipient", value: plan.recipient },
       ownerFact(own),
-      tokenFact(plan),
-      amountFact(plan),
+      ...movedFacts(plan),
       ...(await extraFacts(env, plan)),
       feeFact(plan),
     ],
-    pins: {
-      chain: plan.chain.key,
-      from: plan.sender.address,
-      ...Object.fromEntries(
-        plan.instructions.map((instruction, index) => [`instruction_${index}`, instructionPin(instruction)]),
-      ),
-    },
+    pins: pinsOf(plan),
   }
 }
