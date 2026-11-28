@@ -29,7 +29,7 @@ function stillWaiting(chain: SolanaChain, { hash, last_valid_height }: LedgerRow
     : `may still land until block height ${last_valid_height}`
   return new ToolError(
     "stale",
-    `The earlier send ${hash} on ${chain.name} ${reason}, so nothing was sent. Wait for it, and check the signature on the explorer: ${transactionUrl(chain, hash)}.`,
+    `The earlier send ${hash} on ${chain.name} ${reason}, so nothing was sent. Wait for it, and check the signature with web3_solana_read (method transaction, chain ${chain.key}) or on the explorer: ${transactionUrl(chain, hash)}.`,
   )
 }
 
