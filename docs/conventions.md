@@ -799,7 +799,33 @@ package adds to it.
   estimate or gas price, which change with every block and would fail the call
   as `stale`. A read gives those beforehand.
 - **The facts of this package** are listed here with the tools that use them,
-  as each domain ships.
+  as each domain ships. Each tool's labels come in this order, and the Japanese
+  words of every label and template are in `src/core/evm/words.ts`.
+
+  `web3_evm_send`:
+  - `Recipient`: the address that receives, whole, in checksum case; the one an
+    ENS name resolved to.
+  - `ENS name`: only when the recipient was given as a name: the normalized name
+    and the address it resolved to.
+  - `Own wallet`: `your wallet <label>` (`<label>#<index>` for a seed phrase's
+    account) when the recipient is one of the user's own, else
+    `not one of your wallets`.
+  - `Token`: the native coin of the chain, or the token's address with the
+    symbol it declares quoted (no symbol when it is not fit to show). An NFT
+    send has `Collection` in its place, and no `Amount`.
+  - `Amount`: the amount in the token's units, with its smallest units and
+    decimals (wei for the native coin). An NFT send has `Token id` and, for an
+    ERC-1155, `Count`.
+  - `Max fee`: the fee ceiling in wei, and in the chain's coin.
+
+  `web3_evm_revoke`:
+  - `Spender`: the address whose approval is revoked, whole, in checksum case.
+  - `ENS name`: as above, for a spender given as a name.
+  - `Token` (an allowance) or `Collection` (an operator): the contract's
+    address with the symbol it declares quoted.
+  - `Revokes`: `the allowance` or `the operator approval`, never an amount,
+    which moves with every spend.
+  - `Max fee`: as above.
 
 ## Grants
 

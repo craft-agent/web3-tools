@@ -169,13 +169,36 @@ all listed too.
 
 ### EVM (`evm`)
 
-On by default. Lists supported EVM chains and the provider each would use without a request, sends native coins, ERC-20 tokens and NFTs from a labelled wallet, and revokes the approvals it gave.
+On by default. Lists supported EVM chains and the provider each would use without a request, says where a transaction stands, sends native coins, ERC-20 tokens and NFTs from a labelled wallet, and revokes the approvals it gave.
 
-| Tool              | What it does                                                                                                | Class          |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
-| `web3_evm_read`   | `chains`: list chains, native coins and fee models                                                          | read           |
-| `web3_evm_send`   | Send a native coin, an ERC-20 token or NFTs (ERC-721, ERC-1155) under a `max_fee` ceiling; waits up to 20 s | administrative |
-| `web3_evm_revoke` | Revoke an ERC-20 allowance or an NFT operator under a `max_fee` ceiling; waits up to 20 s                   | idempotent     |
+| Tool              | What it does                                                                                                                             | Class          |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `web3_evm_read`   | `chains`: list chains, native coins and fee models; `transaction`: a hash's status, block and confirmations, and its ledger row          | read           |
+| `web3_evm_send`   | Send a native coin, an ERC-20 token or NFTs (ERC-721, ERC-1155) to an address or an ENS name under a `max_fee` ceiling; waits up to 20 s | administrative |
+| `web3_evm_revoke` | Revoke an ERC-20 allowance or an NFT operator (a spender given as an address or an ENS name) under a `max_fee` ceiling; waits up to 20 s | idempotent     |
+
+#### Sending
+
+- **`max_fee` is a ceiling, in wei, that the person approves.** The prompt shows
+  it; a send is signed so that it cannot cost more, and one the network's fees
+  have outgrown fails as `stale` with nothing sent. A `max_fee` below what the
+  network asks now is refused before anyone is asked, and the refusal names a
+  value that leaves room.
+- **Every send asks, even to the user's own wallet.** The prompt shows the
+  recipient in full, whether it is one of the user's wallets, the token (an
+  address, with the symbol it declares quoted) and the amount. A recipient may
+  be an ENS name, resolved on-chain only (Ethereum for a mainnet, Sepolia for a
+  testnet); the prompt shows the name beside the address it resolved to, and a
+  name that needs an off-chain lookup (EIP-3668) is refused. With the `language`
+  setting at `ja` a native plugin draws these prompts in Japanese.
+- **Outcomes are `confirmed`, `failed` (it landed and reverted, so the fee was
+  spent) and `pending` (no result within 20 s).** A pending send is never sent
+  again: `transaction` says whether the node still holds it.
+- **The ledger is `<state_dir>/ledger/`.** A row is written before every
+  broadcast, so a crash or a lost answer never sends the same funds twice. The
+  next send from a wallet with an open row looks it up first: it refuses while
+  the node holds it, and takes its nonce when the node does not know it.
+  `sends_per_hour` caps the writes of every wallet together; see [Settings](#settings).
 
 ### Solana (`solana`)
 
