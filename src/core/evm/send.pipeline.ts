@@ -12,13 +12,17 @@ import { rawTransactionHex, signEvmTransaction, type SignedEvmTransaction } from
 import type { ToolContext } from "../tool"
 import { capFees, quoteFees } from "./fees"
 import { transactionCount, type EvmCall } from "./reads"
-import { buildSend, type SendEnv, type SendPlan } from "./send.build"
-import { checkFunds, refuseUnsendable, simulateSend } from "./send.gate"
+import type { LockedPlan, SendEnv } from "./send.build"
 import { findReceipt, holdsTransaction, stillWaiting } from "./send.lookup"
-import type { EvmSendArgs } from "./send.schema"
 
 /** What the locked part of a send leaves for the rest of the call: its ledger row, and the node's refusal when it refused. */
 export type SentTransaction = { row: LedgerRow; refusal?: ToolError }
+
+/** The plan made again under the lock, and the refusals that need the chain as it stands, to run once the plan is the approved one. */
+export type Rebuilt = { plan: LockedPlan; check(): Promise<void> }
+
+/** Makes the plan again from the call's arguments, as the chain stands now. */
+export type Rebuild = () => Promise<Rebuilt>
 
 const NONCE_TAKEN_NOTE = "Its nonce was taken by another transaction; it can never land."
 const REFUSED_NOTE = "The network refused it; nothing was sent."
@@ -132,15 +136,16 @@ async function broadcast(
 }
 
 /**
- * Signs and broadcasts the send under the ledger's lock, from its first check to the broadcast's answer, so two
- * sends never race. The row is written before the broadcast, and a hash the ledger has seen is never sent again:
+ * Signs and broadcasts the write under the ledger's lock, from its first check to the broadcast's answer, so two
+ * writes never race. The row is written before the broadcast, and a hash the ledger has seen is never sent again:
  * an earlier row the node does not know is taken over by signing a new transaction with its nonce. Everything before
  * the row throws as nothing sent; once the row is written nothing throws, since the transaction may be out.
- * `confirmed` is the plan the person approved: the call that is signed must be the same.
+ * `confirmed` is the plan the person approved: `rebuild` makes the plan again under the lock, and the call that is
+ * signed must be the same. Its `check` runs once it is, with the refusals that need the chain as it stands.
  */
 export async function sendUnderLock(
-  args: EvmSendArgs,
-  confirmed: SendPlan,
+  confirmed: LockedPlan,
+  rebuild: Rebuild,
   env: SendEnv,
   ctx: ToolContext,
 ): Promise<SentTransaction> {
@@ -150,13 +155,11 @@ export async function sendUnderLock(
     await withLedger(stateDir, runtime.now, async (ledger) => {
       checkSendsPerHour(ledger, sendsPerHour(ctx), runtime.now())
       const reusedNonce = await resolveOpenRows(ledger, env, confirmed.sender.address)
-      const plan = await buildSend(args, env)
+      const { plan, check } = await rebuild()
       if (!sameCall(confirmed.call, plan.call)) {
         throw new ToolError("stale", "What was approved changed before the send could run. Nothing was sent.")
       }
-      refuseUnsendable(plan)
-      await checkFunds(env, plan)
-      await simulateSend(client, plan)
+      await check()
       const nonce = reusedNonce ?? (await transactionCount(client, plan.sender.address, "pending"))
       const quote = await quoteFees(client, chain, plan.call, nonce)
       const fees = capFees(quote, plan.maxFee)
@@ -178,10 +181,7 @@ export async function sendUnderLock(
         family: "evm",
         chain: chain.key,
         sender: plan.sender.address,
-        recipient: plan.recipient,
-        kind: plan.token === null ? "native" : "erc20",
-        token: plan.token,
-        amount: String(plan.units),
+        ...plan.ledger,
         hash: signed.hash,
         nonce: String(nonce),
         last_valid_height: null,

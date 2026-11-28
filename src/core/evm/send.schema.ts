@@ -14,8 +14,23 @@ export const sendInput = z.object({
       "The sending wallet: its label, with #<index> for an account of a seed phrase (main#3). Left out, the only wallet.",
     ),
   to: z.string().describe("The recipient: a 0x address."),
-  token: z.string().optional().describe("The token's 0x contract address; left out, the chain's native coin."),
-  amount: z.string().describe("How much, as a decimal string in the token's own units, such as 1.5; never rounded."),
+  token: z
+    .string()
+    .optional()
+    .describe(
+      "The token's 0x contract address, or with token_id the NFT collection's; left out, the chain's native coin.",
+    ),
+  token_id: z
+    .string()
+    .optional()
+    .describe(
+      "Sends an NFT of the collection named by token: its id, as decimal digits or 0x and hex digits. Left out, no NFT.",
+    ),
+  amount: z
+    .string()
+    .describe(
+      "How much, as a decimal string in the token's own units, such as 1.5; never rounded. With token_id, how many NFTs: a whole number, 1 for an ERC-721.",
+    ),
   max_fee: z
     .string()
     .describe(
@@ -31,8 +46,9 @@ export const sendOutput = z.object({
   ledger_row: z.string().describe("The id of the send's row in the ledger."),
   from: z.string().describe("The sender's address."),
   to: z.string().describe("The recipient's address."),
-  token: z.string().nullable().describe("The token's address; null for the native coin."),
-  amount: z.string().describe("The amount sent, in the token's units."),
+  token: z.string().nullable().describe("The token's or the NFT collection's address; null for the native coin."),
+  token_id: z.string().nullable().describe("The NFT's id in decimal; null unless an NFT was sent."),
+  amount: z.string().describe("The amount sent, in the token's units; how many, for an NFT."),
   symbol: z
     .string()
     .nullable()

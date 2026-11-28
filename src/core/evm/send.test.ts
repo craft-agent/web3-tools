@@ -38,6 +38,7 @@ describe("a native send", () => {
       from: HARDHAT_ADDRESS_0,
       to: HARDHAT_ADDRESS_1,
       token: null,
+      token_id: null,
       amount: "1.5",
       symbol: "ETH",
       block: "101",

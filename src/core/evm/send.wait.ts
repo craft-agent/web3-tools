@@ -7,6 +7,12 @@ import type { SEND_OUTCOMES } from "./send.schema"
 export const WAIT_POLLS = 10
 export const WAIT_POLL_MS = 2000
 
+/** The sentences of a write tool's description about the wait and the outcomes it reports. */
+export const WAIT_DESCRIPTION = [
+  `After the broadcast the tool waits up to ${(WAIT_POLLS * WAIT_POLL_MS) / 1000} s for the transaction to land.`,
+  "Outcomes: confirmed (landed and succeeded); failed (landed but reverted, the fee was spent and nothing moved); pending (sent or possibly sent, no result yet).",
+].join(" ")
+
 /** How a send stands once the wait is over: `block` is set once it landed. */
 export type WaitResult = { outcome: (typeof SEND_OUTCOMES)[number]; block: string | null }
 

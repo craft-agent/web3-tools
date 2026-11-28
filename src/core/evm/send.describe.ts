@@ -3,18 +3,40 @@ import type { RpcDeps } from "../rpc/client"
 import { requireRuntime } from "../runtime"
 import { ownAddresses, resolveAccount } from "../signer/accounts"
 import type { CallDescription, CallFact, CallHeadline, CallValue, ToolContext } from "../tool"
-import { buildSend, parseAddressArgument, sendEnv, SEND_SUBJECT, type SendPlan } from "./send.build"
+import {
+  buildSend,
+  isNftSend,
+  parseAddressArgument,
+  sendEnv,
+  SEND_SUBJECT,
+  type NftSendPlan,
+  type SendPlan,
+} from "./send.build"
 import type { EvmSendArgs } from "./send.schema"
 
 /** The wallet that owns an address, as the person names it: `main`, or `main#3` for an account of a seed phrase. */
 type OwnWallet = { label: string; index: number | null }
 
-/** The headline of a send: what it moves and where. A token with no symbol to show is named by its kind. */
-function headlineOf({ chain, units, decimals, symbol }: SendPlan): CallHeadline {
+/** The headline of a send: what it moves and where. A token with no symbol to show is named by its kind; an NFT by its collection and id. */
+function headlineOf(plan: SendPlan): CallHeadline {
+  const { chain, units, decimals, symbol } = plan
   const amount = formatAmount(units, decimals)
+  if (isNftSend(plan)) {
+    const values = { id: String(plan.tokenId), collection: plan.token, chain: chain.name }
+    return plan.kind === "erc1155"
+      ? { text: "Send {count} of NFT #{id} of {collection} on {chain}", values: { ...values, count: amount } }
+      : { text: "Send NFT #{id} of {collection} on {chain}", values }
+  }
   return symbol === null
     ? { text: "Send {amount} of a token on {chain}", values: { amount, chain: chain.name } }
     : { text: "Send {amount} {symbol} on {chain}", values: { amount, symbol, chain: chain.name } }
+}
+
+const DECLARED_SYMBOL_TEXT = '{address} declaring the symbol "{symbol}"'
+
+/** A contract as the person is shown it: its address, with the symbol it declares when a prompt may show it. */
+export function contractValue(address: string, symbol: string | null): string | CallValue {
+  return symbol === null ? address : { text: DECLARED_SYMBOL_TEXT, values: { address, symbol } }
 }
 
 function ownerFact(own: OwnWallet | undefined): CallFact {
@@ -36,7 +58,7 @@ function tokenFact({ chain, token, symbol }: SendPlan): CallFact {
     value:
       symbol === null
         ? { text: "{address}, whose declared symbol is not shown", values: { address: token } }
-        : { text: '{address} declaring the symbol "{symbol}"', values: { address: token, symbol } },
+        : { text: DECLARED_SYMBOL_TEXT, values: { address: token, symbol } },
   }
 }
 
@@ -61,7 +83,17 @@ function amountFact({ chain, token, symbol, units, decimals }: SendPlan): CallFa
   }
 }
 
-function feeFact({ chain, maxFee }: SendPlan): CallFact {
+/** The facts of an NFT send that stand for the token and the amount: the collection, the id and, of an ERC-1155, the count. */
+function nftFacts({ token, symbol, tokenId, kind, units }: NftSendPlan): CallFact[] {
+  const facts: CallFact[] = [
+    { label: "Collection", value: contractValue(token, symbol) },
+    { label: "Token id", value: String(tokenId) },
+  ]
+  return kind === "erc1155" ? [...facts, { label: "Count", value: String(units) }] : facts
+}
+
+/** The fact that names the fee ceiling, in wei and in the chain's coin. */
+export function feeFact({ chain, maxFee }: Pick<SendPlan, "chain" | "maxFee">): CallFact {
   return {
     label: "Max fee",
     value: {
@@ -92,8 +124,7 @@ export async function describeSend(args: EvmSendArgs, ctx: ToolContext, deps: Rp
     facts: [
       { label: "Recipient", value: plan.recipient },
       ownerFact(own),
-      tokenFact(plan),
-      amountFact(plan),
+      ...(isNftSend(plan) ? nftFacts(plan) : [tokenFact(plan), amountFact(plan)]),
       feeFact(plan),
     ],
     pins: {

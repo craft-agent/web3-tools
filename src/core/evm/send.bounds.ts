@@ -4,7 +4,7 @@ import { buildSend, sendEnv } from "./send.build"
 import type { EvmSendArgs } from "./send.schema"
 
 /** The separator of the paths the `asset` and `recipient` bounds are measured as. */
-const PATH_SEPARATOR = "/"
+export const PATH_SEPARATOR = "/"
 
 /** What a grant over `web3_evm_send` can limit beyond its targets, rate and expiry. */
 export const SEND_BOUNDS: ToolBounds = {
@@ -12,7 +12,7 @@ export const SEND_BOUNDS: ToolBounds = {
     kind: "prefix",
     separator: PATH_SEPARATOR,
     description:
-      "The chains and tokens a send may use: <chain> for any asset on it, <chain>/native for its coin, or <chain>/<token address in lower case> for one token.",
+      "The chains and tokens a send may use: <chain> for any asset on it, <chain>/native for its coin, or <chain>/<token or NFT collection address in lower case> for one token or collection.",
   },
   recipient: {
     kind: "prefix",
@@ -21,7 +21,7 @@ export const SEND_BOUNDS: ToolBounds = {
   },
   amount: {
     kind: "max",
-    description: "The most a send may move, in the asset's smallest unit (wei for a native coin).",
+    description: "The most a send may move, in the asset's smallest unit (wei for a native coin); for NFTs, how many.",
   },
   max_fee: { kind: "max", description: "The highest max_fee a send may give, in wei." },
 }
