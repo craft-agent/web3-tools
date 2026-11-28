@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { SOLANA_PROGRAMS } from "../chains/solana"
 import { toolError } from "../rpc/client.fixtures"
 import { blockHeight, latestBlockhash, recentPriorityFees, signatureStatus, simulate } from "./reads"
 import { nodeClient, transferMessage, unsigned } from "./reads.fixtures"
@@ -101,6 +102,31 @@ describe("simulate", () => {
       { commitment: "confirmed", sigVerify: false, replaceRecentBlockhash: true, encoding: "base64" },
     ])
     expect(cluster.balanceOf(BOB)).toBe(0n)
+  })
+
+  test("returns the accounts it is asked to watch as the run leaves them, in order, null for one that is not there", async () => {
+    const cluster = new FakeSolanaCluster().setBalance(ALICE.address, 10_000_000n)
+    const message = transferMessage(cluster.latestBlockhash, ALICE.address, BOB, 1_000_000n)
+    const result = await simulate(cluster.client(), unsigned(message), [BOB, testAddress(5)])
+    expect(result.accounts).toEqual([{ lamports: 1_000_000n, owner: SOLANA_PROGRAMS.systemProgram }, null])
+    expect(cluster.requestsOf("simulateTransaction")[0]![1]).toEqual({
+      commitment: "confirmed",
+      sigVerify: false,
+      replaceRecentBlockhash: true,
+      encoding: "base64",
+      accounts: { addresses: [BOB, testAddress(5)], encoding: "base64" },
+    })
+    expect(cluster.balanceOf(BOB)).toBe(0n)
+    expect((await simulate(cluster.client(), unsigned(message))).accounts).toEqual([])
+  })
+
+  test("a cluster that does not return the watched accounts is upstream_error", async () => {
+    const { client } = nodeClient({
+      simulateTransaction: { result: { value: { err: null, logs: [], unitsConsumed: 5, accounts: null } } },
+    })
+    const error = await toolError(simulate(client, "tx", [BOB]))
+    expect(error.code).toBe("upstream_error")
+    expect(error.message).toContain("accounts")
   })
 
   test("a transaction the cluster would fail is invalid_argument quoting its error and its log as data", async () => {

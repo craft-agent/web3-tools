@@ -80,7 +80,11 @@ type Handler = (params: unknown[]) => FakeRpcAnswer | Promise<FakeRpcAnswer>
 
 type Status = { slot: bigint; err: unknown }
 
-type SimulateConfig = { sigVerify?: boolean; replaceRecentBlockhash?: boolean }
+type SimulateConfig = {
+  sigVerify?: boolean
+  replaceRecentBlockhash?: boolean
+  accounts?: { addresses?: unknown[]; encoding?: string }
+}
 
 /** How many blocks a blockhash stays valid for. */
 const MAX_BLOCKHASH_AGE = 150n
@@ -386,7 +390,10 @@ export class FakeSolanaCluster {
   #simulate([text, config]: unknown[]): FakeRpcAnswer {
     const tx = this.#decode(text)
     if (!("signature" in tx)) return tx
-    const { sigVerify, replaceRecentBlockhash } = (config ?? {}) as SimulateConfig
+    const { sigVerify, replaceRecentBlockhash, accounts: watched } = (config ?? {}) as SimulateConfig
+    if (watched !== undefined && watched.encoding !== "base64") {
+      return invalidParams("The fake returns the accounts of a simulation as base64 only.")
+    }
     const refusal =
       sigVerify === true && !signaturesVerify(tx)
         ? "SignatureFailure"
@@ -396,10 +403,15 @@ export class FakeSolanaCluster {
     const result = refusal
       ? undefined
       : runTransaction(this.#accounts, tx, { lamportsPerByte: this.lamportsPerByte, forceFail: false })
+    const err = refusal ?? result?.err ?? null
+    const left =
+      watched === undefined || err !== null || result === undefined
+        ? null
+        : (watched.addresses ?? []).map((address) => accountValue(result.accounts, String(address), "base64"))
     return inContext(this.slot, {
-      err: refusal ?? result?.err ?? null,
+      err,
       logs: result?.logs ?? [],
-      accounts: null,
+      accounts: left,
       unitsConsumed: result?.unitsConsumed ?? 0,
       returnData: null,
     })

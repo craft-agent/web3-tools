@@ -1,8 +1,10 @@
 import { z } from "zod"
-import { TOKEN_PROGRAMS } from "../chains/solana"
+import { SOLANA_PROGRAMS, TOKEN_PROGRAMS } from "../chains/solana"
 import { ToolError } from "../errors"
 import type { JsonRpcClient } from "../rpc/client"
-import { accountOf, unreadable, type SolanaAccount } from "./reads"
+import { metadataAddress } from "./address"
+import { accountOf, rawAccountOf, unreadable, type SolanaAccount } from "./reads"
+import { metadataTokenStandard, type MetadataFacts } from "./token-rules"
 
 /** An extension of a Token-2022 mint or token account, as the node parses it: its camelCase name and its state (empty for one that has none). */
 export type TokenExtension = { name: string; state: Record<string, unknown> }
@@ -125,4 +127,14 @@ export async function tokenAccountFacts(client: JsonRpcClient, address: string):
     state,
     extensions: toExtensions(extensions),
   }
+}
+
+/**
+ * What the Token Metadata account of `mint` says: its declared symbol and token standard. `null` when the mint has none
+ * (the address holds no account of Token Metadata's); an account whose data cannot be read is `upstream_error`.
+ */
+export async function metadataFacts(client: JsonRpcClient, mint: string): Promise<MetadataFacts | null> {
+  const account = await rawAccountOf(client, metadataAddress(mint))
+  if (account?.owner !== SOLANA_PROGRAMS.tokenMetadataProgram || account.data === undefined) return null
+  return metadataTokenStandard(account.data)
 }
