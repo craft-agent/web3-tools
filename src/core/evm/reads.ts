@@ -4,6 +4,8 @@ import { isPlainObject } from "../rpc/mask"
 import { bytesOfHex, decodeAbiString, decodeUtf8, quantityHex, readWord, WORD_BYTES } from "./abi"
 import { balanceOfCall, DECIMALS_CALL, SYMBOL_CALL } from "./views"
 
+export { promptSymbol } from "../symbol"
+
 /** A call as the node simulates it: who sends it, to what, with how much value and which data. */
 export type EvmCall = { from: string; to: string; value: bigint; data: string }
 
@@ -32,9 +34,6 @@ const REVERT_MESSAGE = /revert/i
 
 const UNSUPPORTED_CODE = -32601
 const UNSUPPORTED_MESSAGE = /method not found|not supported|unsupported|does not exist|not available/i
-
-/** What a prompt may show of a token's symbol. */
-const PROMPT_SYMBOL = /^[A-Za-z0-9.$_-]{1,12}$/
 
 function unreadable(client: JsonRpcClient, what: string): ToolError {
   return new ToolError("upstream_error", `${client.name} answered ${what} with something that is not a hex quantity.`)
@@ -219,11 +218,6 @@ export async function declaredSymbol(client: JsonRpcClient, token: string): Prom
   const symbol = await callView(client, token, SYMBOL_CALL)
   const symbolBytes = symbol.reverted ? undefined : bytesOfHex(symbol.data)
   return symbolBytes ? decodeSymbol(symbolBytes) : null
-}
-
-/** `symbol` when a prompt may show it (1 to 12 letters, digits and `.$_-`), else `null`: a symbol is stranger-chosen text. */
-export function promptSymbol(symbol: string | null): string | null {
-  return symbol !== null && PROMPT_SYMBOL.test(symbol) ? symbol : null
 }
 
 /** The ERC-20 balance of `owner` at `token`; 0 for a token that reverts or answers nothing. */

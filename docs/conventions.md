@@ -769,9 +769,12 @@ and every entry point checks them the same way.
   transfer fee, transfer hook, non-transferable mint, confidential transfers,
   a memo the destination requires, new accounts frozen by default, or a paused
   mint. The person would be told one amount while the chain moved another, or
-  a stranger's program would run. Display-only extensions are sent, and a
-  permanent delegate, which can move any holder's tokens, is named in the
-  prompt.
+  a stranger's program would run. Display-only extensions are sent, and so
+  are a transfer hook with no program and a transfer fee whose current and
+  next settings charge nothing, which change nothing as they stand (a mint
+  set otherwise after the prompt is caught when the send is built again).
+  An extension the package does not know is refused. A permanent delegate,
+  which can move any holder's tokens, is named in the prompt.
 - **An NFT is sent only when it is a plain one**, read from its Metaplex
   metadata on-chain: a programmable NFT must move through Token Metadata's own
   instruction, and compressed and Core assets have no SPL mint. No indexer
