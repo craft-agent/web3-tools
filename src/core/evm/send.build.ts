@@ -35,11 +35,11 @@ export type SendPlan = {
   call: EvmCall
 }
 
-const SUBJECT = "Sends"
+export const SEND_SUBJECT = "Sends"
 
 /** The chain, its client and the call's runtime; the client is cancelled with the call. */
 export function sendEnv(chainKey: string, ctx: ToolContext, deps: RpcDeps): SendEnv {
-  const { runtime, stateDir } = requireRuntime(ctx, SUBJECT)
+  const { runtime, stateDir } = requireRuntime(ctx, SEND_SUBJECT)
   const chain = evmChain(chainKey)
   return { chain, client: evmClient(chain, { ...deps, signal: ctx.signal }), runtime, stateDir }
 }

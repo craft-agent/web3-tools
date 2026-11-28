@@ -169,11 +169,12 @@ all listed too.
 
 ### EVM (`evm`)
 
-On by default. Lists supported EVM chains and the provider each would use without a request.
+On by default. Lists supported EVM chains and the provider each would use without a request, and sends native coins and ERC-20 tokens from a labelled wallet.
 
-| Tool            | What it does                                       | Class |
-| --------------- | -------------------------------------------------- | ----- |
-| `web3_evm_read` | `chains`: list chains, native coins and fee models | read  |
+| Tool            | What it does                                                                      | Class          |
+| --------------- | --------------------------------------------------------------------------------- | -------------- |
+| `web3_evm_read` | `chains`: list chains, native coins and fee models                                | read           |
+| `web3_evm_send` | Send a native coin or an ERC-20 token under a `max_fee` ceiling; waits up to 20 s | administrative |
 
 ### Solana (`solana`)
 
