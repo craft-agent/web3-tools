@@ -685,7 +685,12 @@ and every entry point checks them the same way.
   reported by its hash. Keys cannot be masked by their shape, since a
   transaction hash has the shape of an EVM key, so the signer keeps them from
   ever reaching a string: an error raised while it holds a key is replaced by
-  a fixed message naming the step that failed.
+  a fixed message naming the step that failed. A signed transaction is an
+  object that shows its hash only, and its bytes are taken out for the
+  broadcast's request alone.
+- **It signs for the address the prompt showed.** The sender's address is
+  derived again from the key when it signs, and a key that no longer opens it
+  fails the call as `stale`, signing nothing.
 - **A key that cannot be read is `unauthenticated` and a key file anyone else
   can reach is `forbidden`**; neither message quotes any part of it.
 
@@ -722,14 +727,20 @@ and every entry point checks them the same way.
   transaction's `to`: for a token, the recipient in the calldata or the
   instruction's owner. An ENS name is resolved when the prompt is drawn, and
   the prompt shows the name and the address it resolved to.
+- **ENS names resolve on-chain only**, through ENS's Universal Resolver on
+  Ethereum for a mainnet and on Sepolia for a testnet, after ENSIP-15
+  normalisation. A name that needs an off-chain lookup (EIP-3668) is refused
+  with a request for the address: the lookup would send a request to a URL the
+  name's resolver chooses, which no tool follows.
 - **Every write asks, a send to the user's own wallet included.** The prompt
   says when the recipient is one of the user's own, and `targets` name the
   sender and the recipient, so an "always" answer covers that pair only.
 - **A write that moves funds out of a wallet or can add exposure is
   administrative**, so Claude Code asks for it even under an allow rule. A
-  write that can only lower exposure (a cancel, a reduce-only order) is a tool
-  of its own and may take a lower class; a harness that remembers an approval
-  for a tool would otherwise carry it over to a harmful call.
+  write that can only lower exposure (a cancel, a reduce-only order, revoking
+  an approval) is a tool of its own and may take a lower class; a harness that
+  remembers an approval for a tool would otherwise carry it over to a harmful
+  call. Such a tool still pays a fee and takes `max_fee`.
 - **A write returns what it sent**: the hash or order ids, the outcome and the
   ledger row's id. Nothing after the broadcast turns the reply into an error:
   a failed read while waiting reports `pending`.
