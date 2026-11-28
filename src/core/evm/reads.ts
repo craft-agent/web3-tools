@@ -59,7 +59,8 @@ export function callParams(call: CallInput): Record<string, string> {
   }
 }
 
-function isRevert(error: unknown): error is RpcRefusal {
+/** Whether `error` is the node saying a call reverts: JSON-RPC code 3, or a message that says so. */
+export function isRevert(error: unknown): error is RpcRefusal {
   return error instanceof RpcRefusal && (error.rpc.code === REVERT_CODE || REVERT_MESSAGE.test(error.rpc.message))
 }
 

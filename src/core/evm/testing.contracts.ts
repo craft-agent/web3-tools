@@ -87,8 +87,11 @@ export type Erc1155Init = {
   symbol?: FakeSymbol
 }
 
-/** The result of running a call on a contract: a revert with its reason, or the returned data and what the call changes when it is sent. */
-export type CallOutcome = { revert: string } | { returns: string; effect?: () => void }
+/**
+ * The result of running a call on a contract: a revert with its reason (and, for a custom error, its data as
+ * `0x` hex, which `Error(reason)` is otherwise), or the returned data and what the call changes when it is sent.
+ */
+export type CallOutcome = { revert: string; data?: string } | { returns: string; effect?: () => void }
 
 export function newErc20(init: Erc20Init = {}): FakeErc20 {
   const allowances = new Map<string, bigint>()

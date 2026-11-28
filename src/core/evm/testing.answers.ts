@@ -38,15 +38,15 @@ export const quantity = (value: bigint): FakeRpcAnswer => ({ result: quantityHex
 /** The number in the hex quantity `value`; 0 for anything that is not text. */
 export const toBigInt = (value: unknown): bigint => (typeof value === "string" && value !== "" ? BigInt(value) : 0n)
 
-/** A reverted call as a node answers it: code 3, the reason in the message and `Error(reason)` as data. */
-export function revertAnswer(reason: string): FakeRpcAnswer {
+/** A reverted call as a node answers it: code 3, the reason in the message and `data` (`Error(reason)` by default) as data. */
+export function revertAnswer(reason: string, data: string = revertData(reason)): FakeRpcAnswer {
   const message = `execution reverted${reason === "" ? "" : `: ${reason}`}`
-  return { error: { code: REVERT_ERROR_CODE, message, data: revertData(reason) } }
+  return { error: { code: REVERT_ERROR_CODE, message, data } }
 }
 
 /** The answer to an `eth_call` whose result is `outcome`. */
 export function outcomeAnswer(outcome: CallOutcome): FakeRpcAnswer {
-  return "revert" in outcome ? revertAnswer(outcome.revert) : { result: outcome.returns }
+  return "revert" in outcome ? revertAnswer(outcome.revert, outcome.data) : { result: outcome.returns }
 }
 
 /** What an oracle function configured as `value` returns. */

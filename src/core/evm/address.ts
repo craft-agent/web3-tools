@@ -13,13 +13,18 @@ function invalid(text: string, problem: string): ToolError {
   return new ToolError("invalid_argument", `The EVM address ${subject} ${problem}`)
 }
 
+/** Whether `text` is `0x` and 40 hex digits, in any case; its checksum is not checked. */
+export function isEvmAddress(text: string): boolean {
+  return ADDRESS_PATTERN.test(text)
+}
+
 /**
  * The EIP-55 form of the EVM address `text`: `0x` and 40 hex digits. All lower
  * or all upper case is taken as it is; mixed case must be the address's own
  * EIP-55 capitals, since a mistyped digit then fails the check.
  */
 export function parseEvmAddress(text: string): string {
-  if (!ADDRESS_PATTERN.test(text)) throw invalid(text, "is not 0x followed by 40 hex digits.")
+  if (!isEvmAddress(text)) throw invalid(text, "is not 0x followed by 40 hex digits.")
   const checksummed = toChecksumAddress(hexToBytes(text.slice(2)))
   const digits = text.slice(2)
   const mixedCase = digits !== digits.toLowerCase() && digits !== digits.toUpperCase()

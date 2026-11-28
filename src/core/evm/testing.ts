@@ -1,5 +1,5 @@
 import { Transaction } from "micro-eth-signer"
-import { evmChain, FEE_ORACLES, type EvmChain } from "../chains/evm"
+import { ENS_UNIVERSAL_RESOLVER_ADDRESS, evmChain, FEE_ORACLES, type EvmChain } from "../chains/evm"
 import { evmClient, type ClientOptions, type FetchLike, type JsonRpcClient } from "../rpc/client"
 import { fakeRpc, type FakeRpcAnswer, type FakeRpcRequest } from "../rpc/testing"
 import { quantityHex } from "./abi"
@@ -34,6 +34,8 @@ import {
   type FakeErc721,
 } from "./testing.contracts"
 import { blockHashOf, receiptObject, transactionObject, type FakeReceipt, type FakeTx } from "./testing.shapes"
+
+import { ensOutcome, type FakeEnsEntry } from "./testing.ens"
 
 export * from "./testing.contracts"
 export type { FakeLineaEstimate, FakeOracle, SendFailure } from "./testing.answers"
@@ -83,7 +85,8 @@ const SELECTORS = {
  * call's block argument is ignored, but for the pending nonce and `eth_getBlockByNumber`), does not charge an L1
  * data fee when it mines, and runs the fixed calls of `calls.ts` and the reads of `reads.ts` only.
  *
- * Setup: `setBalance`, `setNonce`, `addContract`, `addErc20`, `addErc721`, `addErc1155`. Control: `mine`,
+ * Setup: `setBalance`, `setNonce`, `addContract`, `addErc20`, `addErc721`, `addErc1155`, `addEnsName`,
+ * `addOffchainEnsName` (ENS's Universal Resolver, which every fake chain holds). Control: `mine`,
  * `failSend`, `inject`, `autoMineAfterPolls`, `estimateRevert`, `revertWhen`. Assertions: `requests`,
  * `requestsOf`, `pending`, `receiptOf`, `balanceOf`, `nonceOf`, `contractAt`.
  */
@@ -113,6 +116,7 @@ export class FakeEvmChain {
   readonly requests: FakeRpcRequest[]
   readonly #accounts = new Map<string, Account>()
   readonly #contracts = new Map<string, FakeContract>()
+  readonly #ens = new Map<string, FakeEnsEntry>()
   readonly #pool: FakeTx[] = []
   readonly #mined = new Map<string, FakeReceipt>()
   readonly #blocks = new Map<bigint, string[]>()
@@ -186,6 +190,18 @@ export class FakeEvmChain {
     const token = newErc1155(init)
     this.addContract(address, token)
     return token
+  }
+
+  /** Makes the Universal Resolver answer `address` for the normalized `name`; a later call for the same name re-points it. */
+  addEnsName(name: string, address: string): this {
+    this.#ens.set(name, { address })
+    return this
+  }
+
+  /** Makes the normalized `name` one whose resolver needs an off-chain lookup: the Universal Resolver reverts with `OffchainLookup`. */
+  addOffchainEnsName(name: string): this {
+    this.#ens.set(name, "offchain")
+    return this
   }
 
   /** The contract at `address`, if any. */
@@ -367,9 +383,17 @@ export class FakeEvmChain {
     return { revert: "" }
   }
 
+  #ensCall(to: string, data: string): CallOutcome | undefined {
+    return addressKey(to) === addressKey(ENS_UNIVERSAL_RESOLVER_ADDRESS) ? ensOutcome(this.#ens, data) : undefined
+  }
+
   #call(from: string, to: string, data: string): CallOutcome {
     const contract = this.#contracts.get(addressKey(to))
-    return this.#oracleCall(to, data) ?? (contract ? runContractCall(contract, from, data) : { returns: "0x" })
+    return (
+      this.#oracleCall(to, data) ??
+      this.#ensCall(to, data) ??
+      (contract ? runContractCall(contract, from, data) : { returns: "0x" })
+    )
   }
 
   #estimate(call: CallObject): FakeRpcAnswer {

@@ -41,11 +41,25 @@ function padded(bytes: Uint8Array): string {
   return digits.padEnd(Math.ceil(digits.length / WORD_DIGITS) * WORD_DIGITS, "0")
 }
 
+/** The arguments of a call whose parameters are all `bytes`: each one's offset, then each one's length and padded data, as hex digits. */
+export function bytesArguments(values: readonly string[]): string {
+  const tails = values.map((hex) => {
+    const bytes = bytesOfHex(hex)
+    if (!bytes) throw new TypeError("not hex data")
+    return `${word(BigInt(bytes.length))}${padded(bytes)}`
+  })
+  let offset = values.length * WORD_BYTES
+  const heads = tails.map((tail) => {
+    const head = word(BigInt(offset))
+    offset += tail.length / 2
+    return head
+  })
+  return [...heads, ...tails].join("")
+}
+
 /** The arguments of a call whose one parameter is `bytes`: the offset, the length and the padded data, as hex digits. */
 export function bytesArgument(hex: string): string {
-  const bytes = bytesOfHex(hex)
-  if (!bytes) throw new TypeError("not hex data")
-  return `${word(BigInt(WORD_BYTES))}${word(BigInt(bytes.length))}${padded(bytes)}`
+  return bytesArguments([hex])
 }
 
 /** `text` as the ABI encoding of a `string` return value: `0x`, the offset, the length and the padded UTF-8. */
