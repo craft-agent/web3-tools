@@ -5,6 +5,7 @@ import { evmClient, type ClientOptions, type JsonRpcClient, type RpcDeps } from 
 import { requireRuntime, type ToolRuntime } from "../runtime"
 import { resolveAccount } from "../signer/accounts"
 import type { ToolContext } from "../tool"
+import { SEND_SUBJECT, type LedgerEntry, type WriteSender } from "../write/types"
 import { parseEvmAddress } from "./address"
 import { erc1155SafeTransferFrom, erc20Transfer, erc721SafeTransferFrom } from "./calls"
 import { isEnsName, resolveEnsName } from "./ens"
@@ -24,18 +25,12 @@ export type SendEnv = {
   rpc: ClientOptions
 }
 
-/** The account that sends: wallet `label`, its index in a seed phrase (`null` for a lone key) and its address. */
-export type SendSender = { label: string; index: number | null; address: string }
-
 /** What a send moves: the native coin, an ERC-20 token, or NFTs of an ERC-721 or ERC-1155 collection. */
 export type SendKind = "native" | "erc20" | "erc721" | "erc1155"
 
-/** What the ledger records of a write: the kind of its row, who it is for, the token and the amount in digits. */
-export type LedgerEntry = { kind: string; recipient: string; token: string | null; amount: string }
-
 /** The part of a write that is signed and recorded, whichever tool built it. */
 export type LockedPlan = {
-  sender: SendSender
+  sender: WriteSender
   /** The transaction to sign. */
   call: EvmCall
   /** The ceiling on the whole fee, in wei. */
@@ -46,7 +41,7 @@ export type LockedPlan = {
 /** Everything a send is, resolved once: the one transaction `describe`, `gate` and `execute` all mean. */
 export type SendPlan = {
   chain: EvmChain
-  sender: SendSender
+  sender: WriteSender
   /** The recipient in checksum case: the address an ENS name resolved to, when one was given. */
   recipient: string
   /** The ENS name the recipient was given as, normalized; `null` for an address. */
@@ -75,8 +70,6 @@ export type NftSendPlan = SendPlan & { kind: "erc721" | "erc1155"; token: string
 export function isNftSend(plan: SendPlan): plan is NftSendPlan {
   return (plan.kind === "erc721" || plan.kind === "erc1155") && plan.token !== null && plan.tokenId !== null
 }
-
-export const SEND_SUBJECT = "Sends"
 
 /** The chain, its client and the call's runtime; the client is cancelled with the call. */
 export function sendEnv(chainKey: string, ctx: ToolContext, deps: RpcDeps): SendEnv {

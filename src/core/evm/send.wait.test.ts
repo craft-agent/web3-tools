@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { withLedger } from "../ledger/store"
 import { holdsKeyMaterial } from "../signer/testing"
+import { WAIT_POLLS, WAIT_POLL_MS } from "../write/wait"
 import { cleanRigs, makeRig, NOW, nativeArgs } from "./send.testing"
-import { WAIT_POLLS, WAIT_POLL_MS } from "./send.wait"
 import { HARDHAT_ADDRESS_0 } from "./testing.sign"
 
 afterEach(cleanRigs)

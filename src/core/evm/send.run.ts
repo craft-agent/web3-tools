@@ -1,29 +1,20 @@
-import type { LedgerRow } from "../ledger/store"
-import { confirmWrite, type ToolContext, type ToolSpec } from "../tool"
+import type { ToolContext, ToolSpec } from "../tool"
+import { runWrite, type WriteRequest, type WriteResult } from "../write/run"
+import type { Sleep } from "../write/wait"
 import type { LockedPlan, SendEnv } from "./send.build"
-import { sendUnderLock, type Rebuild } from "./send.pipeline"
-import { waitForReceipt, type Sleep, type WaitResult } from "./send.wait"
-
-/** What a write asks of the path every write shares: the question for the person, the approved plan, and how to make it again. */
-export type WriteRequest = { prompt: string; confirmed: LockedPlan; rebuild: Rebuild }
-
-/** The ledger row of a write that was broadcast, and how it stands once the wait is over. */
-export type WriteResult = WaitResult & { row: LedgerRow }
+import { evmDriver } from "./send.driver"
+import { lookupReceipt } from "./send.lookup"
 
 /**
- * The path every write takes once its plan is built and its refusals are past: asks the person where the tool's
- * class needs it, signs and broadcasts under the ledger's lock, throws the node's refusal when it did not take the
- * transaction, then waits for the receipt. Nothing after the row is written throws.
+ * The path every write takes once its plan is built and its refusals are past, on an EVM chain: see `runWrite`. The
+ * wait looks for the transaction's receipt.
  */
-export async function runWrite(
+export function runEvmWrite(
   spec: Pick<ToolSpec, "id" | "class">,
   ctx: ToolContext,
   env: SendEnv,
   sleep: Sleep,
-  { prompt, confirmed, rebuild }: WriteRequest,
+  request: WriteRequest<LockedPlan>,
 ): Promise<WriteResult> {
-  await confirmWrite(spec, ctx, prompt)
-  const { row, refusal } = await sendUnderLock(confirmed, rebuild, env, ctx)
-  if (refusal) throw refusal
-  return { row, ...(await waitForReceipt(row, env, sleep, ctx.signal)) }
+  return runWrite(spec, ctx, env, { driver: evmDriver(env), lookup: lookupReceipt(env.client) }, sleep, request)
 }

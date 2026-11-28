@@ -2,17 +2,12 @@ import { parseUnits } from "../amount"
 import type { EvmChain } from "../chains/evm"
 import { ToolError } from "../errors"
 import { resolveAccount } from "../signer/accounts"
+import type { WriteSender } from "../write/types"
 import { erc20Approve, setApprovalForAll } from "./calls"
 import { declaredSymbol, hasCode, promptSymbol, type EvmCall } from "./reads"
 import { declaresDecimals, erc20Allowance, operatorApproved } from "./reads.approval"
 import type { EvmRevokeArgs, REVOKED_KINDS } from "./revoke.schema"
-import {
-  parseAddressArgument,
-  resolveAddressArgument,
-  type LockedPlan,
-  type SendEnv,
-  type SendSender,
-} from "./send.build"
+import { parseAddressArgument, resolveAddressArgument, type LockedPlan, type SendEnv } from "./send.build"
 
 /** What a revoke does: the allowance of an ERC-20 token set to 0, or an operator removed from a collection. */
 export type RevokeKind = "revoke_erc20" | "revoke_operator"
@@ -20,7 +15,7 @@ export type RevokeKind = "revoke_erc20" | "revoke_operator"
 /** Everything a revoke is, resolved once: the one transaction `describe`, `gate` and `execute` all mean. */
 export type RevokePlan = {
   chain: EvmChain
-  sender: SendSender
+  sender: WriteSender
   /** The token's or the collection's address in checksum case. */
   token: string
   /** The spender or the operator, in checksum case: the address an ENS name resolved to, when one was given. */

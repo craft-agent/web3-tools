@@ -2,15 +2,24 @@ import { setTimeout as delay } from "node:timers/promises"
 import { formatAmount } from "../amount"
 import type { RpcDeps } from "../rpc/client"
 import { defineTool, type ToolSpec } from "../tool"
+import type { Rebuild } from "../write/pipeline"
+import { WAIT_DESCRIPTION, type Sleep } from "../write/wait"
 import { SEND_BOUNDS, measureSend } from "./send.bounds"
-import { buildSend, isNftSend, lockedPlanOf, namedAddress, sendEnv, type SendEnv, type SendPlan } from "./send.build"
+import {
+  buildSend,
+  isNftSend,
+  lockedPlanOf,
+  namedAddress,
+  sendEnv,
+  type LockedPlan,
+  type SendEnv,
+  type SendPlan,
+} from "./send.build"
 import { describeSend, sendTargets } from "./send.describe"
 import { checkFunds, gateSend, refuseUnsendable, simulateSend } from "./send.gate"
 import { transactionUrl } from "./send.lookup"
-import type { Rebuild } from "./send.pipeline"
-import { runWrite } from "./send.run"
+import { runEvmWrite } from "./send.run"
 import { sendInput, sendOutput, type EvmSendArgs } from "./send.schema"
-import { WAIT_DESCRIPTION, type Sleep } from "./send.wait"
 
 /** What a send's tool factory takes: the node's dependencies, and how the wait for a receipt pauses. */
 export type SendDeps = RpcDeps & { readonly sleep?: Sleep }
@@ -35,7 +44,7 @@ function promptOf(plan: SendPlan, amount: string): string {
 }
 
 /** Makes the send again under the ledger's lock, with the refusals it needs the chain as it stands for. */
-function rebuildSend(args: EvmSendArgs, env: SendEnv): Rebuild {
+function rebuildSend(args: EvmSendArgs, env: SendEnv): Rebuild<LockedPlan> {
   return async () => {
     const plan = await buildSend(args, env)
     return {
@@ -71,7 +80,7 @@ export function defineEvmSend(deps: SendDeps = {}): ToolSpec<typeof sendInput, t
       const plan = await buildSend(args, env)
       refuseUnsendable(plan)
       const amount = formatAmount(plan.units, plan.decimals)
-      const { row, outcome, block } = await runWrite(send, ctx, env, sleep, {
+      const { row, outcome, block } = await runEvmWrite(send, ctx, env, sleep, {
         prompt: promptOf(plan, amount),
         confirmed: lockedPlanOf(plan),
         rebuild: rebuildSend(args, env),

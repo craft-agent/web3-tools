@@ -1,16 +1,16 @@
 import { defineEvmRevoke } from "./revoke"
-import { makeToolRig, MAX_FEE, TOKEN_ADDRESS, type RigOptions, type ToolRig } from "./send.testing"
+import { makeEvmToolRig, MAX_FEE, TOKEN_ADDRESS, type EvmToolRig, type RigOptions } from "./send.testing"
 import { HARDHAT_ADDRESS_1 } from "./testing.sign"
 
 /** The address whose approval the fixtures revoke: Hardhat's second account. */
 export const SPENDER_ADDRESS = HARDHAT_ADDRESS_1
 
-/** The rig of `web3_evm_revoke`; see `makeToolRig` for what it is set up with. */
-export type RevokeRig = ToolRig<ReturnType<typeof defineEvmRevoke>>
+/** The rig of `web3_evm_revoke`; see `makeEvmToolRig` for what it is set up with. */
+export type RevokeRig = EvmToolRig<ReturnType<typeof defineEvmRevoke>>
 
 /** A rig of `web3_evm_revoke`. */
 export function makeRevokeRig(options: RigOptions = {}): RevokeRig {
-  return makeToolRig(defineEvmRevoke, options)
+  return makeEvmToolRig(defineEvmRevoke, options)
 }
 
 /** The raw arguments of the revoke of `SPENDER_ADDRESS`'s approval of `TOKEN_ADDRESS`, by the wallet `main`. */

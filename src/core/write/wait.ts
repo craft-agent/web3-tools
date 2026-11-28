@@ -1,9 +1,7 @@
 import { settleLedgerRow, type LedgerRow } from "../ledger/store"
-import type { SendEnv } from "./send.build"
-import { findReceipt } from "./send.lookup"
-import type { SEND_OUTCOMES } from "./send.schema"
+import type { WriteEnv, WriteOutcome } from "./types"
 
-/** Waits for a receipt this many times, this many milliseconds apart: 20 seconds in all. */
+/** Waits for a result this many times, this many milliseconds apart: 20 seconds in all. */
 export const WAIT_POLLS = 10
 export const WAIT_POLL_MS = 2000
 
@@ -13,8 +11,14 @@ export const WAIT_DESCRIPTION = [
   "Outcomes: confirmed (landed and succeeded); failed (landed but reverted, the fee was spent and nothing moved); pending (sent or possibly sent, no result yet).",
 ].join(" ")
 
-/** How a send stands once the wait is over: `block` is set once it landed. */
-export type WaitResult = { outcome: (typeof SEND_OUTCOMES)[number]; block: string | null }
+/** How a write stands once the wait is over: `block` is set once it landed. */
+export type WaitResult = { outcome: WriteOutcome; block: string | null }
+
+/** A write that landed: whether it succeeded, and its block. */
+export type Landed = { outcome: "confirmed" | "failed"; block: string }
+
+/** Looks the transaction of `row` up on the chain: what it landed as, or `null` while the chain has no result for it. */
+export type Lookup = (row: LedgerRow) => Promise<Landed | null>
 
 /** Pauses for `ms`, ending early with an `AbortError` when `signal` aborts. */
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>
@@ -22,25 +26,24 @@ export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>
 const STILL_PENDING: WaitResult = { outcome: "pending", block: null }
 
 /**
- * Waits for the transaction of `row` to land and settles the row with what the receipt says. Nothing here
+ * Waits for the transaction of `row` to land and settles the row with what `lookup` finds. Nothing here
  * turns the reply into an error, since the transaction is out: a node that cannot be read, a row that cannot be
- * settled and a cancellation all leave the send `pending`, and no receipt within the wait does too.
+ * settled and a cancellation all leave the write `pending`, and no result within the wait does too.
  */
-export async function waitForReceipt(
+export async function waitForLanding(
   row: LedgerRow,
-  { client, runtime, stateDir }: SendEnv,
+  { runtime, stateDir }: WriteEnv,
+  lookup: Lookup,
   sleep: Sleep,
   signal: AbortSignal | undefined,
 ): Promise<WaitResult> {
   try {
     for (let poll = 0; poll < WAIT_POLLS; poll++) {
       await sleep(WAIT_POLL_MS, signal)
-      const receipt = await findReceipt(client, row.hash)
-      if (receipt === null) continue
-      const block = String(receipt.block)
-      const outcome = receipt.status === 1 ? "confirmed" : "failed"
-      await settleLedgerRow(stateDir, runtime.now, row.id, { outcome, block })
-      return { outcome, block }
+      const landed = await lookup(row)
+      if (landed === null) continue
+      await settleLedgerRow(stateDir, runtime.now, row.id, landed)
+      return landed
     }
   } catch {
     return STILL_PENDING

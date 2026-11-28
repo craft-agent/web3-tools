@@ -14,7 +14,7 @@ import {
   nftArgs,
   TOKEN_ADDRESS,
   tokenArgs,
-  type ToolRig,
+  type EvmToolRig,
 } from "./send.testing"
 import { HARDHAT_ADDRESS_0, HARDHAT_ADDRESS_1 } from "./testing.sign"
 import { EVM_TRANSLATIONS } from "./words"
@@ -25,7 +25,7 @@ const JA = EVM_TRANSLATIONS.ja as Words
 const NO_SYMBOL = "not a symbol!"
 
 /** Every English word and template of the prompt `args` draw: the tool's title and intent, its headline, the labels and the value templates. */
-async function wordsOf<Spec extends ToolSpec>(rig: ToolRig<Spec>, args: unknown): Promise<string[]> {
+async function wordsOf<Spec extends ToolSpec>(rig: EvmToolRig<Spec>, args: unknown): Promise<string[]> {
   const description = await wholeCallDescription(rig.tool, args, rig.ctx)
   if (!description) throw new Error("no description")
   const values = description.facts.flatMap(({ value }) => (typeof value === "string" ? [] : [value.text]))

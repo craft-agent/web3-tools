@@ -2,6 +2,7 @@ import type { EvmChain } from "../chains/evm"
 import { ToolError } from "../errors"
 import type { JsonRpcClient } from "../rpc/client"
 import { isPlainObject } from "../rpc/mask"
+import type { Lookup } from "../write/wait"
 import { parseQuantity } from "./reads"
 
 /** The result of a transaction that landed: whether it succeeded, and its block. */
@@ -34,6 +35,15 @@ export async function findReceipt(client: JsonRpcClient, hash: string): Promise<
   return {
     status: status === 1n ? 1 : 0,
     block: parseQuantity(client, answer.blockNumber, "the receipt's blockNumber"),
+  }
+}
+
+/** What a row's transaction landed as, from its receipt on `client`'s node; `null` while the node has none. */
+export function lookupReceipt(client: JsonRpcClient): Lookup {
+  return async (row) => {
+    const receipt = await findReceipt(client, row.hash)
+    if (receipt === null) return null
+    return { outcome: receipt.status === 1 ? "confirmed" : "failed", block: String(receipt.block) }
   }
 }
 
