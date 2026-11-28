@@ -5,6 +5,7 @@ manifest_version: 1
 requires_hermes: ">=0.22"
 provides_tools:
   - web3_evm_read
+  - web3_evm_revoke
   - web3_evm_send
   - web3_grant_create
   - web3_grant_read

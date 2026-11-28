@@ -169,12 +169,13 @@ all listed too.
 
 ### EVM (`evm`)
 
-On by default. Lists supported EVM chains and the provider each would use without a request, and sends native coins and ERC-20 tokens from a labelled wallet.
+On by default. Lists supported EVM chains and the provider each would use without a request, sends native coins, ERC-20 tokens and NFTs from a labelled wallet, and revokes the approvals it gave.
 
-| Tool            | What it does                                                                      | Class          |
-| --------------- | --------------------------------------------------------------------------------- | -------------- |
-| `web3_evm_read` | `chains`: list chains, native coins and fee models                                | read           |
-| `web3_evm_send` | Send a native coin or an ERC-20 token under a `max_fee` ceiling; waits up to 20 s | administrative |
+| Tool              | What it does                                                                                                | Class          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
+| `web3_evm_read`   | `chains`: list chains, native coins and fee models                                                          | read           |
+| `web3_evm_send`   | Send a native coin, an ERC-20 token or NFTs (ERC-721, ERC-1155) under a `max_fee` ceiling; waits up to 20 s | administrative |
+| `web3_evm_revoke` | Revoke an ERC-20 allowance or an NFT operator under a `max_fee` ceiling; waits up to 20 s                   | idempotent     |
 
 ### Solana (`solana`)
 
