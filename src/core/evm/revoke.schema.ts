@@ -1,5 +1,6 @@
 import { z } from "zod"
-import { SEND_OUTCOMES, sendInput } from "./send.schema"
+import { WRITE_OUTCOMES } from "../write/types"
+import { sendInput } from "./send.schema"
 
 /** What a revoke takes back: an ERC-20 token's allowance, or an operator's approval over all of a wallet's NFTs of a collection. */
 export const REVOKED_KINDS = ["allowance", "operator"] as const
@@ -21,7 +22,7 @@ export const revokeInput = z.object({
 export const revokeOutput = z.object({
   chain: z.string().describe("The chain's key."),
   hash: z.string().describe("The transaction's hash."),
-  outcome: z.enum(SEND_OUTCOMES).describe("confirmed, failed or pending."),
+  outcome: z.enum(WRITE_OUTCOMES).describe("confirmed, failed or pending."),
   ledger_row: z.string().describe("The id of the revoke's row in the ledger."),
   from: z.string().describe("The wallet's address, whose approval was revoked."),
   token: z.string().describe("The token's or the collection's address."),

@@ -1,10 +1,10 @@
 import { formatAmount } from "../amount"
 import { HYPERLIQUID_BRIDGE_ADDRESSES, type EvmChain } from "../chains/evm"
 import { ToolError } from "../errors"
-import { isOpen, sameIdentifier } from "../ledger/rows"
-import { checkSendsPerHour, readLedger, sendsPerHour, type LedgerRow } from "../ledger/store"
+import type { LedgerRow } from "../ledger/store"
 import type { JsonRpcClient, RpcDeps } from "../rpc/client"
 import type { ToolContext } from "../tool"
+import { gateLedger, type OpenRowsOf } from "../write/gate"
 import { quoteFees, feeShortfall } from "./fees"
 import { erc20Balance, nativeBalance, simulateTransfer, transactionCount } from "./reads"
 import {
@@ -123,16 +123,10 @@ export async function simulateSend(client: JsonRpcClient, { call, kind }: SendPl
   if (kind === "erc20") await simulateTransfer(client, call)
 }
 
-/** Refuses a send while an earlier one of this sender on the chain is held by the node without a result. */
-async function checkOpenRows({ chain, client }: SendEnv, rows: readonly LedgerRow[], sender: string): Promise<void> {
-  const open = rows.filter(
-    (row) =>
-      row.family === "evm" && row.chain === chain.key && sameIdentifier("evm", row.sender, sender) && isOpen(row),
-  )
-  for (const row of open) {
-    if ((await findReceipt(client, row.hash)) === null && (await holdsTransaction(client, row.hash))) {
-      throw stillWaiting(chain, row.hash)
-    }
+/** Refuses a send while an earlier one of this sender on the chain, `row`, is held by the node without a result. */
+async function checkOpenRow({ chain, client }: SendEnv, row: LedgerRow): Promise<void> {
+  if ((await findReceipt(client, row.hash)) === null && (await holdsTransaction(client, row.hash))) {
+    throw stillWaiting(chain, row.hash)
   }
 }
 
@@ -147,9 +141,8 @@ export async function gateWrite(
   plan: LockedPlan,
   checkWallet: () => Promise<void>,
 ): Promise<void> {
-  const rows = await readLedger(env.stateDir)
-  checkSendsPerHour({ rows }, sendsPerHour(ctx), env.runtime.now())
-  await checkOpenRows(env, rows, plan.sender.address)
+  const owner: OpenRowsOf = { family: "evm", chain: env.chain.key, sender: plan.sender.address }
+  await gateLedger(env, ctx, owner, (row) => checkOpenRow(env, row))
   await checkWallet()
   const pending = await transactionCount(env.client, plan.sender.address, "pending")
   const shortfall = feeShortfall(await quoteFees(env.client, env.chain, plan.call, pending), plan.maxFee)

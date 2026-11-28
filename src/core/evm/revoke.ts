@@ -1,16 +1,16 @@
 import { setTimeout as delay } from "node:timers/promises"
 import { defineTool, type ToolSpec } from "../tool"
+import type { Rebuild } from "../write/pipeline"
+import { WAIT_DESCRIPTION, type Sleep } from "../write/wait"
 import { REVOKE_BOUNDS, measureRevoke } from "./revoke.bounds"
 import { buildRevoke, lockedRevoke, REVOKED } from "./revoke.build"
 import { describeRevoke, revokeTargets } from "./revoke.describe"
 import { checkRevokeFunds, gateRevoke, refuseRevoke } from "./revoke.gate"
 import { revokeInput, revokeOutput, type EvmRevokeArgs } from "./revoke.schema"
 import type { SendDeps } from "./send"
-import { namedAddress, sendEnv, type SendEnv } from "./send.build"
+import { namedAddress, sendEnv, type LockedPlan, type SendEnv } from "./send.build"
 import { transactionUrl } from "./send.lookup"
-import type { Rebuild } from "./send.pipeline"
-import { runWrite } from "./send.run"
-import { WAIT_DESCRIPTION, type Sleep } from "./send.wait"
+import { runEvmWrite } from "./send.run"
 
 const DESCRIPTION = [
   "Revoke an approval a labelled wallet gave on an EVM chain: an ERC-20 token's allowance for a spender, set to 0, or an operator's approval over every NFT of an ERC-721 or ERC-1155 collection the wallet holds, removed.",
@@ -23,7 +23,7 @@ const DESCRIPTION = [
 ].join(" ")
 
 /** Makes the revoke again under the ledger's lock, with the refusals it needs the chain as it stands for. */
-function rebuildRevoke(args: EvmRevokeArgs, env: SendEnv): Rebuild {
+function rebuildRevoke(args: EvmRevokeArgs, env: SendEnv): Rebuild<LockedPlan> {
   return async () => {
     const plan = await buildRevoke(args, env)
     return {
@@ -57,7 +57,7 @@ export function defineEvmRevoke(deps: SendDeps = {}): ToolSpec<typeof revokeInpu
       const env = sendEnv(args.chain, ctx, deps)
       const plan = await buildRevoke(args, env)
       refuseRevoke(plan)
-      const { row, outcome, block } = await runWrite(revoke, ctx, env, sleep, {
+      const { row, outcome, block } = await runEvmWrite(revoke, ctx, env, sleep, {
         prompt: `Revoke ${namedAddress({ address: plan.spender, ens: plan.ens })} on ${plan.token} on ${plan.chain.name} for ${plan.sender.address}, with a fee of at most ${plan.maxFee} wei`,
         confirmed: lockedRevoke(plan),
         rebuild: rebuildRevoke(args, env),

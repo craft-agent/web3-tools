@@ -1,8 +1,6 @@
 import { z } from "zod"
 import { EVM_CHAIN_KEYS } from "../chains/evm"
-
-/** What a send waits for: it lands and succeeds, lands and reverts (the fee is spent), or has no result yet. */
-export const SEND_OUTCOMES = ["confirmed", "failed", "pending"] as const
+import { WRITE_OUTCOMES } from "../write/types"
 
 /** The arguments of `web3_evm_send`: the whole change, and the ceiling on its fee. */
 export const sendInput = z.object({
@@ -46,7 +44,7 @@ export const sendInput = z.object({
 export const sendOutput = z.object({
   chain: z.string().describe("The chain's key."),
   hash: z.string().describe("The transaction's hash."),
-  outcome: z.enum(SEND_OUTCOMES).describe("confirmed, failed or pending."),
+  outcome: z.enum(WRITE_OUTCOMES).describe("confirmed, failed or pending."),
   ledger_row: z.string().describe("The id of the send's row in the ledger."),
   from: z.string().describe("The sender's address."),
   to: z.string().describe("The recipient's address; the one an ENS name resolved to."),

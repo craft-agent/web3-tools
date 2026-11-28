@@ -1,28 +1,12 @@
 import { ToolError } from "../errors"
-import {
-  checkSendsPerHour,
-  sendsPerHour,
-  withLedger,
-  type Ledger,
-  type LedgerChange,
-  type LedgerRow,
-} from "../ledger/store"
+import type { Ledger, LedgerRow } from "../ledger/store"
 import { RpcRefusal } from "../rpc/client"
 import { rawTransactionHex, signEvmTransaction, type SignedEvmTransaction } from "../signer/sign"
-import type { ToolContext } from "../tool"
+import { settleQuietly, type SignedWrite, type WriteDriver } from "../write/pipeline"
 import { capFees, quoteFees } from "./fees"
 import { transactionCount, type EvmCall } from "./reads"
 import type { LockedPlan, SendEnv } from "./send.build"
-import { findReceipt, holdsTransaction, stillWaiting } from "./send.lookup"
-
-/** What the locked part of a send leaves for the rest of the call: its ledger row, and the node's refusal when it refused. */
-export type SentTransaction = { row: LedgerRow; refusal?: ToolError }
-
-/** The plan made again under the lock, and the refusals that need the chain as it stands, to run once the plan is the approved one. */
-export type Rebuilt = { plan: LockedPlan; check(): Promise<void> }
-
-/** Makes the plan again from the call's arguments, as the chain stands now. */
-export type Rebuild = () => Promise<Rebuilt>
+import { holdsTransaction, lookupReceipt, stillWaiting } from "./send.lookup"
 
 const NONCE_TAKEN_NOTE = "Its nonce was taken by another transaction; it can never land."
 const REFUSED_NOTE = "The network refused it; nothing was sent."
@@ -45,15 +29,6 @@ const MAX_NODE_MESSAGE = 200
 /** A run of hex digits too long for a hash or an address: it could be the transaction itself, which no error carries. */
 const LONG_HEX = /(?:0x)?[0-9a-fA-F]{66,}/g
 
-/** Changes a row, and leaves it as it is when that fails: the next send finds it open and resolves it. */
-async function settleQuietly(ledger: Ledger, id: string, change: LedgerChange): Promise<void> {
-  try {
-    await ledger.settle(id, change)
-  } catch {
-    // Nothing after the broadcast may fail the call.
-  }
-}
-
 function sameCall(a: EvmCall, b: EvmCall): boolean {
   return a.from === b.from && a.to === b.to && a.value === b.value && a.data === b.data
 }
@@ -69,14 +44,12 @@ async function resolveOpenRows(
   { chain, client }: SendEnv,
   sender: string,
 ): Promise<bigint | undefined> {
+  const lookup = lookupReceipt(client)
   let reused: bigint | undefined
   for (const row of ledger.open("evm", chain.key, sender)) {
-    const receipt = await findReceipt(client, row.hash)
-    if (receipt) {
-      await ledger.settle(row.id, {
-        outcome: receipt.status === 1 ? "confirmed" : "failed",
-        block: String(receipt.block),
-      })
+    const landed = await lookup(row)
+    if (landed) {
+      await ledger.settle(row.id, landed)
       continue
     }
     if (await holdsTransaction(client, row.hash)) {
@@ -136,62 +109,43 @@ async function broadcast(
 }
 
 /**
- * Signs and broadcasts the write under the ledger's lock, from its first check to the broadcast's answer, so two
- * writes never race. The row is written before the broadcast, and a hash the ledger has seen is never sent again:
- * an earlier row the node does not know is taken over by signing a new transaction with its nonce. Everything before
- * the row throws as nothing sent; once the row is written nothing throws, since the transaction may be out.
- * `confirmed` is the plan the person approved: `rebuild` makes the plan again under the lock, and the call that is
- * signed must be the same. Its `check` runs once it is, with the refusals that need the chain as it stands.
+ * Takes the nonce, quotes the fees under the plan's ceiling and signs: `reusedNonce` is the nonce of an earlier row
+ * the node does not know, which the new transaction takes over so that at most one of the two can ever land.
  */
-export async function sendUnderLock(
-  confirmed: LockedPlan,
-  rebuild: Rebuild,
-  env: SendEnv,
-  ctx: ToolContext,
-): Promise<SentTransaction> {
+async function signWrite(env: SendEnv, plan: LockedPlan, reusedNonce: bigint | undefined): Promise<SignedWrite> {
   const { chain, client, runtime, stateDir } = env
-  const result: { sent?: SentTransaction } = {}
-  try {
-    await withLedger(stateDir, runtime.now, async (ledger) => {
-      checkSendsPerHour(ledger, sendsPerHour(ctx), runtime.now())
-      const reusedNonce = await resolveOpenRows(ledger, env, confirmed.sender.address)
-      const { plan, check } = await rebuild()
-      if (!sameCall(confirmed.call, plan.call)) {
-        throw new ToolError("stale", "What was approved changed before the send could run. Nothing was sent.")
-      }
-      await check()
-      const nonce = reusedNonce ?? (await transactionCount(client, plan.sender.address, "pending"))
-      const quote = await quoteFees(client, chain, plan.call, nonce)
-      const fees = capFees(quote, plan.maxFee)
-      const signed = await signEvmTransaction(
-        plan.sender,
-        {
-          chainId: chain.chainId,
-          to: plan.call.to,
-          value: plan.call.value,
-          data: plan.call.data,
-          nonce,
-          gasLimit: quote.gasLimit,
-          ...fees,
-        },
-        runtime,
-        stateDir,
-      )
-      const row = await ledger.add({
-        family: "evm",
-        chain: chain.key,
-        sender: plan.sender.address,
-        ...plan.ledger,
-        hash: signed.hash,
-        nonce: String(nonce),
-        last_valid_height: null,
-      })
-      result.sent = { row }
-      result.sent.refusal = await broadcast(ledger, env, row, signed)
-    })
-  } catch (error) {
-    if (result.sent === undefined) throw error
+  const nonce = reusedNonce ?? (await transactionCount(client, plan.sender.address, "pending"))
+  const quote = await quoteFees(client, chain, plan.call, nonce)
+  const fees = capFees(quote, plan.maxFee)
+  const signed = await signEvmTransaction(
+    plan.sender,
+    {
+      chainId: chain.chainId,
+      to: plan.call.to,
+      value: plan.call.value,
+      data: plan.call.data,
+      nonce,
+      gasLimit: quote.gasLimit,
+      ...fees,
+    },
+    runtime,
+    stateDir,
+  )
+  return {
+    hash: signed.hash,
+    nonce: String(nonce),
+    last_valid_height: null,
+    broadcast: (ledger, row) => broadcast(ledger, env, row, signed),
   }
-  if (result.sent === undefined) throw new ToolError("internal_error", "The send left no ledger row.")
-  return result.sent
+}
+
+/** The locked path of an EVM write on `env`'s chain: receipts, the node pool and nonce reuse. */
+export function evmDriver(env: SendEnv): WriteDriver<LockedPlan, bigint | undefined> {
+  return {
+    family: "evm",
+    chain: env.chain.key,
+    resolveOpenRows: (ledger, sender) => resolveOpenRows(ledger, env, sender),
+    isSamePlan: (confirmed, rebuilt) => sameCall(confirmed.call, rebuilt.call),
+    sign: (plan, reusedNonce) => signWrite(env, plan, reusedNonce),
+  }
 }
