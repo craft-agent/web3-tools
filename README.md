@@ -202,11 +202,11 @@ On by default. Lists supported EVM chains and the provider each would use withou
 
 ### Solana (`solana`)
 
-On by default. Lists supported Solana clusters and the provider each would use without a request, sends SOL, SPL tokens and plain NFTs from a labelled wallet, and revokes the delegate of a token account.
+On by default. Lists supported Solana clusters and the provider each would use without a request, says where a transaction stands, sends SOL, SPL tokens and plain NFTs from a labelled wallet, and revokes the delegate of a token account.
 
 | Tool                 | What it does                                                                                                                          | Class          |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| `web3_solana_read`   | `chains`: list clusters and their native coin                                                                                         | read           |
+| `web3_solana_read`   | `chains`: list clusters and their native coin; `transaction`: a signature's status and slot, and its ledger row                       | read           |
 | `web3_solana_send`   | Send SOL, an SPL token (Token, Token-2022) or a plain NFT to a wallet address under a `max_fee` ceiling in lamports; waits up to 20 s | administrative |
 | `web3_solana_revoke` | Revoke the delegate of the wallet's associated token account for a mint under a `max_fee` ceiling in lamports; waits up to 20 s       | idempotent     |
 
@@ -224,9 +224,15 @@ On by default. Lists supported Solana clusters and the provider each would use w
   token account, a mint, a nonce account and an address no key can own are
   refused, and so is a token whose extensions change the transfer; a permanent
   delegate is named in the prompt.
-- **A pending send is never sent again.** The next send from the wallet is
-  `stale` until the earlier one has landed or its blockhash has expired; check
-  the signature on the explorer meanwhile.
+- **Outcomes are `confirmed`, `failed` (it landed with an error, so the fee was
+  spent) and `pending` (no result within 20 s).** A pending send is never sent
+  again: `transaction` says whether it is still `pending`, has `expired` (its
+  blockhash passed its last valid height, so it can never land) or is
+  `not_found`.
+- **The ledger is `<state_dir>/ledger/`.** A row is written before every
+  broadcast. The next send from the wallet is `stale` until the earlier one has
+  landed or its blockhash has expired, which settles its row. `sends_per_hour`
+  caps the writes of every wallet together; see [Settings](#settings).
 
 ### Wallets (`wallet`)
 

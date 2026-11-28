@@ -840,7 +840,8 @@ package adds to it.
   as `stale`. A read gives those beforehand.
 - **The facts of this package** are listed here with the tools that use them,
   as each domain ships. Each tool's labels come in this order, and the Japanese
-  words of every label and template are in `src/core/evm/words.ts`.
+  words of every label and template are in `src/core/evm/words.ts` for EVM and
+  `src/core/solana/words.ts` for Solana.
 
   `web3_evm_send`:
   - `Recipient`: the address that receives, whole, in checksum case; the one an
@@ -865,6 +866,31 @@ package adds to it.
     address with the symbol it declares quoted.
   - `Revokes`: `the allowance` or `the operator approval`, never an amount,
     which moves with every spend.
+  - `Max fee`: as above.
+
+  `web3_solana_send`:
+  - `Recipient`: the wallet address that receives, whole.
+  - `Own wallet`: `your wallet <label>` (`<label>#<index>` for a seed phrase's
+    account) when the recipient is one of the user's own, else
+    `not one of your wallets`.
+  - `Token`: the native coin of the cluster, or the mint's address with the
+    symbol it declares quoted (no symbol when it is not fit to show). An NFT
+    send has `NFT` in its place, the mint with its symbol quoted, and no
+    `Amount`.
+  - `Amount`: the amount in the token's units, with its smallest units and
+    decimals (lamports for SOL).
+  - `Token account`: only when the send creates the recipient's token account:
+    the rent in lamports, which the sender pays.
+  - `Permanent delegate`: only for a token that has one: its address, which can
+    move any holder's tokens.
+  - `Max fee`: the fee ceiling in lamports, and in SOL.
+
+  `web3_solana_revoke`:
+  - `Delegate`: the address whose approval is revoked, whole, as the token
+    account names it now.
+  - `Token`: the mint's address with the symbol it declares quoted.
+  - `Revokes`: `the delegate's approval`, never an amount, which moves with
+    every spend.
   - `Max fee`: as above.
 
 ## Grants
