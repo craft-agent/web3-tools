@@ -50,6 +50,7 @@ describe("an ERC-721 send", () => {
 
     const [row] = await rig.rows()
     expect(result).toEqual({
+      ens: null,
       chain: "ethereum",
       hash: row!.hash,
       outcome: "confirmed",

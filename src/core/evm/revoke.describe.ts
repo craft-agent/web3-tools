@@ -1,11 +1,10 @@
 import type { RpcDeps } from "../rpc/client"
-import { requireRuntime } from "../runtime"
 import { resolveAccount } from "../signer/accounts"
 import type { CallDescription, CallFact, CallHeadline, ToolContext } from "../tool"
 import { buildRevoke, type RevokePlan } from "./revoke.build"
 import type { EvmRevokeArgs } from "./revoke.schema"
-import { parseAddressArgument, sendEnv, SEND_SUBJECT } from "./send.build"
-import { contractValue, feeFact } from "./send.describe"
+import { resolveAddressArgument, sendEnv } from "./send.build"
+import { contractValue, ensFacts, feeFact } from "./send.describe"
 
 /** The headline of a revoke: whose approval of what, on which chain; an operator's is named by its reach. */
 function headlineOf({ chain, kind, spender, token }: RevokePlan): CallHeadline {
@@ -28,11 +27,15 @@ function revokedFact({ kind }: RevokePlan): CallFact {
   return { label: "Revokes", value: { text } }
 }
 
-/** What a revoke's prompt names as its targets: the wallet and the spender, so an "always" answer covers that pair only. */
-export async function revokeTargets(args: EvmRevokeArgs, ctx: ToolContext): Promise<string[]> {
-  const { runtime, stateDir } = requireRuntime(ctx, SEND_SUBJECT)
-  const sender = await resolveAccount(args.account, "evm", runtime, stateDir)
-  return [`from:${sender.address}`, `spender:${parseAddressArgument(args.spender, "spender")}`]
+/**
+ * What a revoke's prompt names as its targets: the wallet and the spender (the address an ENS name resolves to),
+ * so an "always" answer covers that pair only.
+ */
+export async function revokeTargets(args: EvmRevokeArgs, ctx: ToolContext, deps: RpcDeps): Promise<string[]> {
+  const env = sendEnv(args.chain, ctx, deps)
+  const sender = await resolveAccount(args.account, "evm", env.runtime, env.stateDir)
+  const { address } = await resolveAddressArgument(args.spender, "spender", env)
+  return [`from:${sender.address}`, `spender:${address}`]
 }
 
 /**
@@ -43,7 +46,13 @@ export async function describeRevoke(args: EvmRevokeArgs, ctx: ToolContext, deps
   const plan = await buildRevoke(args, sendEnv(args.chain, ctx, deps))
   return {
     headline: headlineOf(plan),
-    facts: [{ label: "Spender", value: plan.spender }, tokenFact(plan), revokedFact(plan), feeFact(plan)],
+    facts: [
+      { label: "Spender", value: plan.spender },
+      ...ensFacts(plan.ens, plan.spender),
+      tokenFact(plan),
+      revokedFact(plan),
+      feeFact(plan),
+    ],
     pins: {
       chain: plan.chain.key,
       from: plan.call.from,

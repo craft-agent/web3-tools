@@ -11,7 +11,9 @@ export const revokeInput = z.object({
   token: z.string().describe("The ERC-20 token's or the NFT collection's 0x contract address."),
   spender: z
     .string()
-    .describe("The 0x address whose approval is revoked: the spender of an ERC-20 allowance, or the operator of NFTs."),
+    .describe(
+      "The 0x address, or the ENS name (such as name.eth) that resolves on-chain to it, whose approval is revoked: the spender of an ERC-20 allowance, or the operator of NFTs.",
+    ),
   max_fee: sendInput.shape.max_fee,
 })
 
@@ -23,7 +25,8 @@ export const revokeOutput = z.object({
   ledger_row: z.string().describe("The id of the revoke's row in the ledger."),
   from: z.string().describe("The wallet's address, whose approval was revoked."),
   token: z.string().describe("The token's or the collection's address."),
-  spender: z.string().describe("The address whose approval was revoked."),
+  spender: z.string().describe("The address whose approval was revoked; the one an ENS name resolved to."),
+  ens: z.string().nullable().describe("The normalized ENS name the spender was given as; null for an address."),
   revoked: z.enum(REVOKED_KINDS).describe("allowance for an ERC-20 token, operator for an NFT collection."),
   block: z.string().nullable().describe("The block the transaction landed in; null while pending."),
   explorer: z.string().describe("The transaction's page on the chain's block explorer."),

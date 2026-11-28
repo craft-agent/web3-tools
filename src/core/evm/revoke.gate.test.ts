@@ -64,12 +64,12 @@ describe("what there is to revoke", () => {
     await expectRefused(makeRevokeRig(), revokeArgs({ token: HARDHAT_ADDRESS_1 }), "invalid_argument", /no contract at/)
   })
 
-  test("the spender is a 0x address, not a name", async () => {
+  test("the spender is a 0x address or an ENS name", async () => {
     await expectRefused(
       makeRevokeRig(),
-      revokeArgs({ spender: "uniswap.eth" }),
+      revokeArgs({ spender: "uniswap" }),
       "invalid_argument",
-      /spender must be a 0x address/,
+      /spender must be a 0x address or an ENS name/,
     )
   })
 })

@@ -1,18 +1,28 @@
 import { parseAmount, parseUnits } from "../amount"
 import { evmChain, type EvmChain } from "../chains/evm"
 import { ToolError } from "../errors"
-import { evmClient, type JsonRpcClient, type RpcDeps } from "../rpc/client"
+import { evmClient, type ClientOptions, type JsonRpcClient, type RpcDeps } from "../rpc/client"
 import { requireRuntime, type ToolRuntime } from "../runtime"
 import { resolveAccount } from "../signer/accounts"
 import type { ToolContext } from "../tool"
 import { parseEvmAddress } from "./address"
 import { erc1155SafeTransferFrom, erc20Transfer, erc721SafeTransferFrom } from "./calls"
+import { isEnsName, resolveEnsName } from "./ens"
 import { promptSymbol, tokenFacts, type EvmCall } from "./reads"
 import { nftFacts, parseCount, parseTokenId } from "./send.nft"
 import type { EvmSendArgs } from "./send.schema"
 
-/** What a send reaches the chain and the wallets through: the chain, a client for it, and the call's runtime and state directory. */
-export type SendEnv = { chain: EvmChain; client: JsonRpcClient; runtime: ToolRuntime; stateDir: string }
+/**
+ * What a send reaches the chain and the wallets through: the chain, a client for it, the call's runtime and state
+ * directory, and the options its clients are made with, which an ENS lookup makes its own client from.
+ */
+export type SendEnv = {
+  chain: EvmChain
+  client: JsonRpcClient
+  runtime: ToolRuntime
+  stateDir: string
+  rpc: ClientOptions
+}
 
 /** The account that sends: wallet `label`, its index in a seed phrase (`null` for a lone key) and its address. */
 export type SendSender = { label: string; index: number | null; address: string }
@@ -37,8 +47,10 @@ export type LockedPlan = {
 export type SendPlan = {
   chain: EvmChain
   sender: SendSender
-  /** The recipient in checksum case. */
+  /** The recipient in checksum case: the address an ENS name resolved to, when one was given. */
   recipient: string
+  /** The ENS name the recipient was given as, normalized; `null` for an address. */
+  ens: string | null
   kind: SendKind
   /** The token's or the collection's address in checksum case; `null` for the native coin. */
   token: string | null
@@ -70,7 +82,8 @@ export const SEND_SUBJECT = "Sends"
 export function sendEnv(chainKey: string, ctx: ToolContext, deps: RpcDeps): SendEnv {
   const { runtime, stateDir } = requireRuntime(ctx, SEND_SUBJECT)
   const chain = evmChain(chainKey)
-  return { chain, client: evmClient(chain, { ...deps, signal: ctx.signal }), runtime, stateDir }
+  const rpc = { ...deps, signal: ctx.signal }
+  return { chain, client: evmClient(chain, rpc), runtime, stateDir, rpc }
 }
 
 /** The checksum form of an address argument; a name or anything else that is not a 0x address is `invalid_argument`. */
@@ -81,12 +94,39 @@ export function parseAddressArgument(text: string, name: string): string {
   return parseEvmAddress(text)
 }
 
+/** An address as an argument named it: the checksum address, and the normalized ENS name it was resolved from, if any. */
+export type NamedAddress = { address: string; ens: string | null }
+
+/**
+ * The address a recipient or spender argument means: a 0x address in checksum case, or an ENS name resolved on
+ * the ENS chain of `env`'s chain. Anything else is `invalid_argument`.
+ */
+export async function resolveAddressArgument(
+  text: string,
+  name: string,
+  { chain, rpc }: Pick<SendEnv, "chain" | "rpc">,
+): Promise<NamedAddress> {
+  if (isEnsName(text)) {
+    const resolved = await resolveEnsName(text, chain, rpc)
+    return { address: resolved.address, ens: resolved.name }
+  }
+  if (!/^0x/i.test(text)) {
+    throw new ToolError("invalid_argument", `The ${name} must be a 0x address or an ENS name such as name.eth.`)
+  }
+  return { address: parseEvmAddress(text), ens: null }
+}
+
+/** An address as a prompt shows it: whole, with the ENS name it was given as in brackets. */
+export function namedAddress({ address, ens }: NamedAddress): string {
+  return ens === null ? address : `${address} (${ens})`
+}
+
 /** What a send signs and records, as the part every write shares. */
 export function lockedPlanOf({ sender, call, maxFee, kind, recipient, token, units }: SendPlan): LockedPlan {
   return { sender, call, maxFee, ledger: { kind, recipient, token, amount: String(units) } }
 }
 
-type SendBase = Pick<SendPlan, "chain" | "sender" | "recipient" | "maxFee">
+type SendBase = Pick<SendPlan, "chain" | "sender" | "recipient" | "ens" | "maxFee">
 
 type NftArguments = { collection: string; tokenId: bigint; units: bigint }
 
@@ -110,7 +150,7 @@ async function buildNftSend(
 export async function buildSend(args: EvmSendArgs, env: SendEnv): Promise<SendPlan> {
   const { chain, client, runtime, stateDir } = env
   const sender = await resolveAccount(args.account, "evm", runtime, stateDir)
-  const recipient = parseAddressArgument(args.to, "recipient")
+  const { address: recipient, ens } = await resolveAddressArgument(args.to, "recipient", env)
   const maxFee = parseUnits(args.max_fee, "max_fee")
   if (args.token_id !== undefined) {
     if (args.token === undefined) {
@@ -121,7 +161,7 @@ export async function buildSend(args: EvmSendArgs, env: SendEnv): Promise<SendPl
       units: parseCount(args.amount),
       collection: parseAddressArgument(args.token, "token"),
     }
-    return buildNftSend(env, { chain, sender, recipient, maxFee }, nft)
+    return buildNftSend(env, { chain, sender, recipient, ens, maxFee }, nft)
   }
   if (args.token === undefined) {
     const units = parseAmount(args.amount, chain.native.decimals)
@@ -130,6 +170,7 @@ export async function buildSend(args: EvmSendArgs, env: SendEnv): Promise<SendPl
       chain,
       sender,
       recipient,
+      ens,
       kind: "native",
       token: null,
       decimals: chain.native.decimals,
@@ -148,6 +189,7 @@ export async function buildSend(args: EvmSendArgs, env: SendEnv): Promise<SendPl
     chain,
     sender,
     recipient,
+    ens,
     kind: "erc20",
     token,
     decimals: facts.decimals,

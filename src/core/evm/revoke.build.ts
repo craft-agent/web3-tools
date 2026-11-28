@@ -6,7 +6,13 @@ import { erc20Approve, setApprovalForAll } from "./calls"
 import { declaredSymbol, hasCode, promptSymbol, type EvmCall } from "./reads"
 import { declaresDecimals, erc20Allowance, operatorApproved } from "./reads.approval"
 import type { EvmRevokeArgs, REVOKED_KINDS } from "./revoke.schema"
-import { parseAddressArgument, type LockedPlan, type SendEnv, type SendSender } from "./send.build"
+import {
+  parseAddressArgument,
+  resolveAddressArgument,
+  type LockedPlan,
+  type SendEnv,
+  type SendSender,
+} from "./send.build"
 
 /** What a revoke does: the allowance of an ERC-20 token set to 0, or an operator removed from a collection. */
 export type RevokeKind = "revoke_erc20" | "revoke_operator"
@@ -17,8 +23,10 @@ export type RevokePlan = {
   sender: SendSender
   /** The token's or the collection's address in checksum case. */
   token: string
-  /** The spender or the operator, in checksum case. */
+  /** The spender or the operator, in checksum case: the address an ENS name resolved to, when one was given. */
   spender: string
+  /** The ENS name the spender was given as, normalized; `null` for an address. */
+  ens: string | null
   /** The declared symbol of the token or collection when a prompt may show it. */
   symbol: string | null
   kind: RevokeKind
@@ -50,7 +58,7 @@ export async function buildRevoke(args: EvmRevokeArgs, env: SendEnv): Promise<Re
   const { chain, client, runtime, stateDir } = env
   const sender = await resolveAccount(args.account, "evm", runtime, stateDir)
   const token = parseAddressArgument(args.token, "token")
-  const spender = parseAddressArgument(args.spender, "spender")
+  const { address: spender, ens } = await resolveAddressArgument(args.spender, "spender", env)
   const maxFee = parseUnits(args.max_fee, "max_fee")
   if (!(await hasCode(client, token))) {
     throw new ToolError("invalid_argument", `There is no contract at ${token} on ${client.name}.`)
@@ -69,6 +77,7 @@ export async function buildRevoke(args: EvmRevokeArgs, env: SendEnv): Promise<Re
     sender,
     token,
     spender,
+    ens,
     symbol: promptSymbol(await declaredSymbol(client, token)),
     kind: isErc20 ? "revoke_erc20" : "revoke_operator",
     maxFee,

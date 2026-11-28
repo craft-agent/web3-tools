@@ -1,17 +1,8 @@
 import { formatAmount } from "../amount"
 import type { RpcDeps } from "../rpc/client"
-import { requireRuntime } from "../runtime"
 import { ownAddresses, resolveAccount } from "../signer/accounts"
 import type { CallDescription, CallFact, CallHeadline, CallValue, ToolContext } from "../tool"
-import {
-  buildSend,
-  isNftSend,
-  parseAddressArgument,
-  sendEnv,
-  SEND_SUBJECT,
-  type NftSendPlan,
-  type SendPlan,
-} from "./send.build"
+import { buildSend, isNftSend, resolveAddressArgument, sendEnv, type NftSendPlan, type SendPlan } from "./send.build"
 import type { EvmSendArgs } from "./send.schema"
 
 /** The wallet that owns an address, as the person names it: `main`, or `main#3` for an account of a seed phrase. */
@@ -103,11 +94,22 @@ export function feeFact({ chain, maxFee }: Pick<SendPlan, "chain" | "maxFee">): 
   }
 }
 
-/** What a send's prompt names as its targets: the sender and the recipient, so an "always" answer covers that pair only. */
-export async function sendTargets(args: EvmSendArgs, ctx: ToolContext): Promise<string[]> {
-  const { runtime, stateDir } = requireRuntime(ctx, SEND_SUBJECT)
-  const sender = await resolveAccount(args.account, "evm", runtime, stateDir)
-  return [`from:${sender.address}`, `to:${parseAddressArgument(args.to, "recipient")}`]
+/** The fact that names the ENS name an address was given as, and the address it resolved to; none for an address. */
+export function ensFacts(ens: string | null, address: string): CallFact[] {
+  return ens === null
+    ? []
+    : [{ label: "ENS name", value: { text: "{name} resolved to {address}", values: { name: ens, address } } }]
+}
+
+/**
+ * What a send's prompt names as its targets: the sender and the recipient (the address an ENS name resolves to),
+ * so an "always" answer covers that pair only.
+ */
+export async function sendTargets(args: EvmSendArgs, ctx: ToolContext, deps: RpcDeps): Promise<string[]> {
+  const env = sendEnv(args.chain, ctx, deps)
+  const sender = await resolveAccount(args.account, "evm", env.runtime, env.stateDir)
+  const { address } = await resolveAddressArgument(args.to, "recipient", env)
+  return [`from:${sender.address}`, `to:${address}`]
 }
 
 /**
@@ -123,6 +125,7 @@ export async function describeSend(args: EvmSendArgs, ctx: ToolContext, deps: Rp
     headline: headlineOf(plan),
     facts: [
       { label: "Recipient", value: plan.recipient },
+      ...ensFacts(plan.ens, plan.recipient),
       ownerFact(own),
       ...(isNftSend(plan) ? nftFacts(plan) : [tokenFact(plan), amountFact(plan)]),
       feeFact(plan),

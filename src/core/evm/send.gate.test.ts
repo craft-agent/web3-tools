@@ -6,13 +6,8 @@ import { HARDHAT_ADDRESS_0, HARDHAT_ADDRESS_1 } from "./testing.sign"
 afterEach(cleanRigs)
 
 describe("the arguments of a send", () => {
-  test("a name is refused with a request for the address", async () => {
-    await expectRefused(
-      makeRig(),
-      nativeArgs({ to: "vitalik.eth" }),
-      "invalid_argument",
-      /0x address.*give the address/,
-    )
+  test("a recipient that is neither an address nor an ENS name is refused", async () => {
+    await expectRefused(makeRig(), nativeArgs({ to: "vitalik" }), "invalid_argument", /0x address or an ENS name/)
   })
 
   test("a token that is not an address is refused", async () => {

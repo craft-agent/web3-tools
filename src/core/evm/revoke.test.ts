@@ -53,6 +53,7 @@ describe("revoking an ERC-20 allowance", () => {
 
     const [row] = await rig.rows()
     expect(result).toEqual({
+      ens: null,
       chain: "ethereum",
       hash: row!.hash,
       outcome: "confirmed",

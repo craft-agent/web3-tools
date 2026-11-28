@@ -13,7 +13,11 @@ export const sendInput = z.object({
     .describe(
       "The sending wallet: its label, with #<index> for an account of a seed phrase (main#3). Left out, the only wallet.",
     ),
-  to: z.string().describe("The recipient: a 0x address."),
+  to: z
+    .string()
+    .describe(
+      "The recipient: a 0x address, or an ENS name that resolves on-chain (such as name.eth), which the prompt shows with the address it resolved to.",
+    ),
   token: z
     .string()
     .optional()
@@ -45,7 +49,8 @@ export const sendOutput = z.object({
   outcome: z.enum(SEND_OUTCOMES).describe("confirmed, failed or pending."),
   ledger_row: z.string().describe("The id of the send's row in the ledger."),
   from: z.string().describe("The sender's address."),
-  to: z.string().describe("The recipient's address."),
+  to: z.string().describe("The recipient's address; the one an ENS name resolved to."),
+  ens: z.string().nullable().describe("The normalized ENS name the recipient was given as; null for an address."),
   token: z.string().nullable().describe("The token's or the NFT collection's address; null for the native coin."),
   token_id: z.string().nullable().describe("The NFT's id in decimal; null unless an NFT was sent."),
   amount: z.string().describe("The amount sent, in the token's units; how many, for an NFT."),
