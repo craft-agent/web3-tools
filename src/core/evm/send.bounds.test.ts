@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { matchGrant, measureOf } from "../grant/match"
 import type { Grant } from "../grant/model"
-import { ceilToNumber, SEND_BOUNDS } from "./send.bounds"
+import { ceilToNumber } from "../write/bounds"
+import { SEND_BOUNDS } from "./send.bounds"
 import { cleanRigs, ETHER, makeRig, MAX_FEE, nativeArgs, TOKEN_ADDRESS, tokenArgs } from "./send.testing"
 import { HARDHAT_ADDRESS_1 } from "./testing.sign"
 

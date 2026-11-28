@@ -1,9 +1,9 @@
 import type { RpcDeps } from "../rpc/client"
 import type { CallMeasure, ToolBounds, ToolContext } from "../tool"
+import { ceilToNumber, PATH_SEPARATOR } from "../write/bounds"
 import { buildRevoke } from "./revoke.build"
 import type { EvmRevokeArgs } from "./revoke.schema"
 import { sendEnv } from "./send.build"
-import { ceilToNumber, PATH_SEPARATOR } from "./send.bounds"
 
 /** What a grant over `web3_evm_revoke` can limit beyond its targets, rate and expiry. */
 export const REVOKE_BOUNDS: ToolBounds = {
