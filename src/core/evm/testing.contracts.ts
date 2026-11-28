@@ -42,6 +42,8 @@ export type FakeErc721 = {
   owners: Map<bigint, string>
   operators: Set<string>
   interfaces: Set<string>
+  /** What `symbol()` answers; `undefined` for a collection without one, which reverts. */
+  symbol: FakeSymbol | undefined
 }
 
 /** An ERC-1155 token contract. `balances` is keyed `owner:id`; `operators` and `interfaces` as for ERC-721. */
@@ -50,6 +52,8 @@ export type FakeErc1155 = {
   balances: Map<string, bigint>
   operators: Set<string>
   interfaces: Set<string>
+  /** What `symbol()` answers; `undefined` for a collection without one, which reverts. */
+  symbol: FakeSymbol | undefined
 }
 
 /** A contract the fake gives code and nothing else: every call to it answers nothing. */
@@ -72,6 +76,7 @@ export type Erc721Init = {
   owners?: Record<string, string>
   operators?: [string, string][]
   interfaces?: string[]
+  symbol?: FakeSymbol
 }
 
 /** An ERC-1155 as a test describes it. `balances` lists `[owner, id, count]`. */
@@ -79,6 +84,7 @@ export type Erc1155Init = {
   balances?: [string, bigint, bigint][]
   operators?: [string, string][]
   interfaces?: string[]
+  symbol?: FakeSymbol
 }
 
 /** The result of running a call on a contract: a revert with its reason, or the returned data and what the call changes when it is sent. */
@@ -113,6 +119,7 @@ export function newErc721(init: Erc721Init = {}): FakeErc721 {
       (init.operators ?? []).map(([owner, operator]) => `${addressKey(owner)}:${addressKey(operator)}`),
     ),
     interfaces: interfaceIds(init.interfaces),
+    symbol: init.symbol,
   }
 }
 
@@ -124,6 +131,7 @@ export function newErc1155(init: Erc1155Init = {}): FakeErc1155 {
       (init.operators ?? []).map(([owner, operator]) => `${addressKey(owner)}:${addressKey(operator)}`),
     ),
     interfaces: interfaceIds(init.interfaces),
+    symbol: init.symbol,
   }
 }
 
@@ -171,6 +179,7 @@ function interfaceTable<C extends FakeErc721 | FakeErc1155>(): Record<
   (contract: C, caller: string, args: bigint[]) => CallOutcome
 > {
   return {
+    "symbol()": (contract) => (contract.symbol === undefined ? revert() : symbolAnswer(contract.symbol)),
     "supportsInterface(bytes4)": (contract, _caller, [id]) => ({
       returns: boolWord(contract.interfaces.has((id >> 224n).toString(16).padStart(8, "0"))),
     }),

@@ -14,7 +14,7 @@ export type ViewAnswer = { reverted: false; data: string } | { reverted: true }
 export type TokenFacts = { decimals: number; symbol: string | null }
 
 /** A token has at most this many decimals; one that claims more is not taken for a token. */
-const MAX_TOKEN_DECIMALS = 36n
+export const MAX_TOKEN_DECIMALS = 36n
 
 /** A symbol longer than this many bytes is not read. */
 const MAX_SYMBOL_BYTES = 256
@@ -207,9 +207,17 @@ export async function tokenFacts(client: JsonRpcClient, token: string): Promise<
       `The contract at ${token} on ${client.name} is not an ERC-20 token: its decimals() could not be read or is above ${MAX_TOKEN_DECIMALS}.`,
     )
   }
+  return { decimals: Number(decimalsWord), symbol: await declaredSymbol(client, token) }
+}
+
+/**
+ * The symbol the contract at `token` declares through `symbol()`, decoded as `tokenFacts` does; `null` when it
+ * reverts, answers nothing or answers what cannot be decoded.
+ */
+export async function declaredSymbol(client: JsonRpcClient, token: string): Promise<string | null> {
   const symbol = await callView(client, token, SYMBOL_CALL)
   const symbolBytes = symbol.reverted ? undefined : bytesOfHex(symbol.data)
-  return { decimals: Number(decimalsWord), symbol: symbolBytes ? decodeSymbol(symbolBytes) : null }
+  return symbolBytes ? decodeSymbol(symbolBytes) : null
 }
 
 /** `symbol` when a prompt may show it (1 to 12 letters, digits and `.$_-`), else `null`: a symbol is stranger-chosen text. */

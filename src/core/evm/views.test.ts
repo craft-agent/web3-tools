@@ -2,10 +2,15 @@ import { describe, expect, test } from "bun:test"
 import { abiString, bytesArgument, bytesOfHex, decodeAbiString, readWord, word } from "./abi"
 import { selectorOf } from "./testing.contracts"
 import {
+  allowanceCall,
   balanceOfCall,
   DECIMALS_CALL,
+  erc1155BalanceOfCall,
   getL1FeeCall,
   getOperatorFeeCall,
+  isApprovedForAllCall,
+  ownerOfCall,
+  supportsInterfaceCall,
   SYMBOL_CALL,
   TOKEN_RATIO_CALL,
   VIEW_SELECTORS,
@@ -18,6 +23,11 @@ describe("the selectors of the reads", () => {
     ["decimals()", VIEW_SELECTORS.decimals],
     ["symbol()", VIEW_SELECTORS.symbol],
     ["balanceOf(address)", VIEW_SELECTORS.balanceOf],
+    ["allowance(address,address)", VIEW_SELECTORS.allowance],
+    ["ownerOf(uint256)", VIEW_SELECTORS.ownerOf],
+    ["isApprovedForAll(address,address)", VIEW_SELECTORS.isApprovedForAll],
+    ["supportsInterface(bytes4)", VIEW_SELECTORS.supportsInterface],
+    ["balanceOf(address,uint256)", VIEW_SELECTORS.erc1155BalanceOf],
     ["getL1Fee(bytes)", VIEW_SELECTORS.getL1Fee],
     ["getOperatorFee(uint256)", VIEW_SELECTORS.getOperatorFee],
     ["tokenRatio()", VIEW_SELECTORS.tokenRatio],
@@ -33,6 +43,19 @@ describe("the calldata of the reads", () => {
 
   test("balanceOf pads the owner to a word", () => {
     expect(balanceOfCall(OWNER)).toBe(`0x70a08231${"0".repeat(24)}${OWNER.slice(2).toLowerCase()}`)
+  })
+
+  test("supportsInterface leaves a bytes4 at the head of its word", () => {
+    expect(supportsInterfaceCall("80ac58cd")).toBe(`0x01ffc9a7${"80ac58cd".padEnd(64, "0")}`)
+  })
+
+  test("the NFT and allowance reads lay their arguments out as words", () => {
+    const owner = OWNER.slice(2).toLowerCase().padStart(64, "0")
+    expect(allowanceCall(OWNER, OWNER)).toBe(`0xdd62ed3e${owner}${owner}`)
+    expect(isApprovedForAllCall(OWNER, OWNER)).toBe(`0xe985e9c5${owner}${owner}`)
+    expect(ownerOfCall(7n)).toBe(`0x6352211e${word(7n)}`)
+    expect(erc1155BalanceOfCall(OWNER, 7n)).toBe(`0x00fdd58e${owner}${word(7n)}`)
+    expect(() => ownerOfCall(2n ** 256n)).toThrow()
   })
 
   test("getOperatorFee takes the gas limit as a word", () => {
