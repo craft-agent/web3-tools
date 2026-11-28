@@ -1,4 +1,4 @@
-import { parseEvmAddress } from "./address"
+import { addressWord, word } from "./abi"
 import { checkUint256 } from "./uint256"
 
 /** The first four bytes of the Keccak-256 of each signature, as 8 hex digits. */
@@ -15,21 +15,8 @@ const SELECTORS = {
   setApprovalForAll: "a22cb465",
 }
 
-/** The byte length of an ABI word, as hex digits. */
-const WORD_DIGITS = 64
-
 /** Where the `bytes` argument of ERC-1155's `safeTransferFrom` starts: after its five head words. */
 const ERC1155_BYTES_OFFSET = 5n * 32n
-
-/** An ABI word: `value` as 64 hex digits. */
-function word(value: bigint): string {
-  return value.toString(16).padStart(WORD_DIGITS, "0")
-}
-
-/** The ABI word of an address: its 40 digits, lower case, after 24 zeros. */
-function addressWord(address: string): string {
-  return parseEvmAddress(address).slice(2).toLowerCase().padStart(WORD_DIGITS, "0")
-}
 
 function call(selector: string, words: readonly string[]): string {
   return `0x${selector}${words.join("")}`

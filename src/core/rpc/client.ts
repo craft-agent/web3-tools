@@ -125,6 +125,11 @@ export class JsonRpcClient {
     this.#secrets = providerSecrets(options.env)
   }
 
+  /** The chain's name, for the messages of those who read through this client. */
+  get name(): string {
+    return this.#name
+  }
+
   /**
    * Calls one JSON-RPC method and returns its `result`, every string masked. A failure throws a `ToolError`
    * (an error the node answered with is an `RpcRefusal`); a cancellation throws an `AbortError`.

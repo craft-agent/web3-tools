@@ -5,6 +5,7 @@ import {
   ENS_UNIVERSAL_RESOLVER_ADDRESS,
   EVM_CHAINS,
   EVM_CHAIN_KEYS,
+  FEE_ORACLES,
   HYPERLIQUID_BRIDGE_ADDRESSES,
   ensChainOf,
   evmChain,
@@ -103,6 +104,14 @@ describe("the system addresses", () => {
     for (const address of addresses) {
       expect(parseEvmAddress(address)).toBe(address)
     }
+  })
+
+  test("the fee oracles are valid EIP-55 addresses, one per model that reads an L1 data fee", () => {
+    expect(Object.keys(FEE_ORACLES).sort()).toEqual(["mantle", "op", "scroll"])
+    for (const address of Object.values(FEE_ORACLES)) {
+      expect(parseEvmAddress(address)).toBe(address)
+    }
+    expect(FEE_ORACLES.mantle).toBe(FEE_ORACLES.op)
   })
 
   test("each bridge sits on a chain of the table, one mainnet and one testnet", () => {
