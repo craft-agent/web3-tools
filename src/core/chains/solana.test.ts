@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test"
+import { base58 } from "@scure/base"
 import { isToolError } from "../errors"
 import { EVM_CHAIN_KEYS } from "./evm"
-import { SOLANA_CHAINS, SOLANA_CHAIN_KEYS, solanaChain, type SolanaChain } from "./solana"
+import {
+  SOLANA_CHAINS,
+  SOLANA_CHAIN_KEYS,
+  SOLANA_PROGRAMS,
+  solanaChain,
+  TOKEN_PROGRAMS,
+  type SolanaChain,
+} from "./solana"
 
 const chains: readonly SolanaChain[] = SOLANA_CHAINS
 
@@ -29,6 +37,19 @@ describe("the Solana chain table", () => {
     expect(devnet.mainnet).toBe("solana")
     expect(devnet.native).toEqual(solanaChain("solana").native)
     expect(devnet.native).toEqual({ symbol: "SOL", decimals: 9 })
+  })
+})
+
+describe("the Solana programs", () => {
+  test("each is a base58 address of 32 bytes", () => {
+    for (const program of Object.values(SOLANA_PROGRAMS)) {
+      expect(base58.decode(program)).toHaveLength(32)
+      expect(base58.encode(base58.decode(program))).toBe(program)
+    }
+  })
+
+  test("the token programs are Token and Token-2022", () => {
+    expect(TOKEN_PROGRAMS).toEqual([SOLANA_PROGRAMS.tokenProgram, SOLANA_PROGRAMS.token2022Program])
   })
 })
 

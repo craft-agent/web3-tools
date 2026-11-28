@@ -46,6 +46,19 @@ export const SOLANA_CHAINS = [
   },
 ] as const satisfies readonly SolanaChain[]
 
+/** The programs a Solana write names, the same on every cluster; no call supplies one. */
+export const SOLANA_PROGRAMS = {
+  systemProgram: "11111111111111111111111111111111",
+  tokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  token2022Program: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+  associatedTokenProgram: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  computeBudgetProgram: "ComputeBudget111111111111111111111111111111",
+  tokenMetadataProgram: "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+} as const
+
+/** The two token programs a transfer may run under: Token and Token-2022. */
+export const TOKEN_PROGRAMS: readonly string[] = [SOLANA_PROGRAMS.tokenProgram, SOLANA_PROGRAMS.token2022Program]
+
 /** The key of a cluster in the table. */
 export type SolanaChainKey = (typeof SOLANA_CHAINS)[number]["key"]
 
