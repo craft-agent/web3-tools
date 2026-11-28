@@ -55,8 +55,11 @@ class SettingsFlagsTest(unittest.TestCase):
 
 
 class OptionFlagsTest(unittest.TestCase):
-    def test_the_package_has_the_state_dir_option(self) -> None:
-        self.assertEqual(project.OPTIONS, {"state_dir": "path"})
+    def test_the_package_has_the_state_dir_and_sends_per_hour_options(self) -> None:
+        self.assertEqual(
+            project.OPTIONS,
+            {"state_dir": "path", "sends_per_hour": {"type": "number", "integer": True, "min": 1}},
+        )
 
     def test_each_kind_becomes_a_flag(self) -> None:
         options = {"note_text": "text", "note_pinned": "boolean", "note_count": "number", "note_tags": "list"}
