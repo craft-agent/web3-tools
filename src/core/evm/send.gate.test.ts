@@ -1,21 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { HYPERLIQUID_BRIDGE_ADDRESSES } from "../chains/evm"
-import type { ErrorCode } from "../errors"
-import { cleanRigs, ETHER, makeRig, nativeArgs, TOKEN_ADDRESS, tokenArgs, type SendRig } from "./send.testing"
+import { cleanRigs, ETHER, expectRefused, makeRig, nativeArgs, TOKEN_ADDRESS, tokenArgs } from "./send.testing"
 import { HARDHAT_ADDRESS_0, HARDHAT_ADDRESS_1 } from "./testing.sign"
 
 afterEach(cleanRigs)
-
-/** The call is refused before anyone is asked and again when it runs, with nothing signed, broadcast or recorded. */
-async function expectRefused(rig: SendRig, args: unknown, code: ErrorCode, message: RegExp): Promise<void> {
-  const approval = await rig.approve(args)
-  expect(approval.refused).toMatchObject({ code })
-  expect(approval.refused?.message).toMatch(message)
-  const error = await rig.run(args).catch((caught: unknown) => caught)
-  expect(error).toMatchObject({ code })
-  expect(rig.fake.requestsOf("eth_sendRawTransaction")).toHaveLength(0)
-  expect(await rig.rows()).toEqual([])
-}
 
 describe("the arguments of a send", () => {
   test("a name is refused with a request for the address", async () => {
