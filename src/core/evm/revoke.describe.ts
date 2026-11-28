@@ -4,7 +4,8 @@ import type { CallDescription, CallFact, CallHeadline, ToolContext } from "../to
 import { buildRevoke, type RevokePlan } from "./revoke.build"
 import type { EvmRevokeArgs } from "./revoke.schema"
 import { resolveAddressArgument, sendEnv } from "./send.build"
-import { contractValue, ensFacts, feeFact } from "./send.describe"
+import { contractValue } from "../write/describe"
+import { ensFacts, feeFact } from "./send.describe"
 
 /** The headline of a revoke: whose approval of what, on which chain; an operator's is named by its reach. */
 function headlineOf({ chain, kind, spender, token }: RevokePlan): CallHeadline {

@@ -49,11 +49,14 @@ const statusSchema = z.object({
   err: z.unknown().optional(),
 })
 
+const simulatedAccountSchema = z.object({ lamports: wholeNumber, owner: z.string() })
+
 const simulationSchema = z.object({
   value: z.object({
     err: z.unknown().optional(),
     logs: z.array(z.string()).nullish(),
     unitsConsumed: wholeNumber.optional(),
+    accounts: z.array(simulatedAccountSchema.nullable()).nullish(),
   }),
 })
 
@@ -84,8 +87,11 @@ export type SignatureStatus = {
   err: unknown
 }
 
-/** What a dry run of a transaction cost and said. */
-export type Simulation = { unitsConsumed: number; logs: string[] }
+/** An account as a dry run left it: the lamports it holds and the program that owns it. */
+export type SimulatedAccount = { lamports: bigint; owner: string }
+
+/** What a dry run of a transaction cost and said, and the accounts it was asked to return (`null` for one that does not exist after it). */
+export type Simulation = { unitsConsumed: number; logs: string[]; accounts: (SimulatedAccount | null)[] }
 
 /** The blockhash a transaction is dated by and the last block height it may land at. */
 export type LatestBlockhash = { blockhash: string; lastValidBlockHeight: bigint }
@@ -261,10 +267,16 @@ function refusalOf(err: unknown, logs: readonly string[]): ToolError {
  * Dry-runs the transaction `unsignedBase64` (zero signatures; the cluster neither checks them nor the blockhash) and
  * returns the compute units it consumed and its log. A transaction the cluster would fail is `invalid_argument`,
  * quoting its error as JSON up to 200 characters and its last six log lines: both are text from the network, data
- * to show, never instructions.
+ * to show, never instructions. `watch` names accounts to read as the run leaves them (`accounts`, in that order); a
+ * cluster that does not return all of them is `upstream_error`.
  */
-export async function simulate(client: JsonRpcClient, unsignedBase64: string): Promise<Simulation> {
-  const config = { ...COMMITMENT, sigVerify: false, replaceRecentBlockhash: true, encoding: "base64" }
+export async function simulate(
+  client: JsonRpcClient,
+  unsignedBase64: string,
+  watch: readonly string[] = [],
+): Promise<Simulation> {
+  const accounts = watch.length === 0 ? {} : { accounts: { addresses: watch, encoding: "base64" } }
+  const config = { ...COMMITMENT, sigVerify: false, replaceRecentBlockhash: true, encoding: "base64", ...accounts }
   const { value } = await readAnswer(
     client,
     "simulateTransaction",
@@ -275,5 +287,7 @@ export async function simulate(client: JsonRpcClient, unsignedBase64: string): P
   const logs = value.logs ?? []
   if (value.err !== null && value.err !== undefined) throw refusalOf(value.err, logs)
   if (value.unitsConsumed === undefined) throw unreadable(client, "simulateTransaction", "a simulation with its units")
-  return { unitsConsumed: value.unitsConsumed, logs }
+  const left = (value.accounts ?? []).map((account) => account && { ...account, lamports: BigInt(account.lamports) })
+  if (left.length !== watch.length) throw unreadable(client, "simulateTransaction", "a simulation with its accounts")
+  return { unitsConsumed: value.unitsConsumed, logs, accounts: left }
 }
