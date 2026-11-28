@@ -202,11 +202,30 @@ On by default. Lists supported EVM chains and the provider each would use withou
 
 ### Solana (`solana`)
 
-On by default. Lists supported Solana clusters and the provider each would use without a request.
+On by default. Lists supported Solana clusters and the provider each would use without a request, and sends SOL and SPL tokens from a labelled wallet.
 
-| Tool               | What it does                                  | Class |
-| ------------------ | --------------------------------------------- | ----- |
-| `web3_solana_read` | `chains`: list clusters and their native coin | read  |
+| Tool               | What it does                                                                                                             | Class          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| `web3_solana_read` | `chains`: list clusters and their native coin                                                                            | read           |
+| `web3_solana_send` | Send SOL or an SPL token (Token, Token-2022) to a wallet address under a `max_fee` ceiling in lamports; waits up to 20 s | administrative |
+
+#### Sending on Solana
+
+- **`max_fee` is a ceiling, in lamports, on the base and the priority fee.** A
+  send is signed so that it cannot cost more, a `max_fee` below what the cluster
+  asks now is refused before anyone is asked with a value that leaves room, and
+  fees that rise after the prompt fail the send as `stale` with nothing sent.
+- **The sender is never left below the rent-exempt minimum.** The amount of a
+  SOL send, `max_fee` and the rent of a token account the send creates must
+  leave the wallet that much; the refusal says how much it may send.
+- **`to` is a wallet.** A token send finds or makes the recipient's token
+  account and the sender pays its rent, which the prompt shows. A program, a
+  token account, a mint, a nonce account and an address no key can own are
+  refused, and so is a token whose extensions change the transfer; a permanent
+  delegate is named in the prompt.
+- **A pending send is never sent again.** The next send from the wallet is
+  `stale` until the earlier one has landed or its blockhash has expired; check
+  the signature on the explorer meanwhile.
 
 ### Wallets (`wallet`)
 

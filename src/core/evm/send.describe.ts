@@ -1,12 +1,10 @@
 import { formatAmount } from "../amount"
 import type { RpcDeps } from "../rpc/client"
 import { ownAddresses, resolveAccount } from "../signer/accounts"
-import type { CallDescription, CallFact, CallHeadline, CallValue, ToolContext } from "../tool"
+import type { CallDescription, CallFact, CallHeadline, ToolContext } from "../tool"
 import { buildSend, isNftSend, resolveAddressArgument, sendEnv, type NftSendPlan, type SendPlan } from "./send.build"
+import { contractValue, DECLARED_SYMBOL_TEXT, ownerFact, type OwnWallet } from "../write/describe"
 import type { EvmSendArgs } from "./send.schema"
-
-/** The wallet that owns an address, as the person names it: `main`, or `main#3` for an account of a seed phrase. */
-type OwnWallet = { label: string; index: number | null }
 
 /** The headline of a send: what it moves and where. A token with no symbol to show is named by its kind; an NFT by its collection and id. */
 function headlineOf(plan: SendPlan): CallHeadline {
@@ -21,20 +19,6 @@ function headlineOf(plan: SendPlan): CallHeadline {
   return symbol === null
     ? { text: "Send {amount} of a token on {chain}", values: { amount, chain: chain.name } }
     : { text: "Send {amount} {symbol} on {chain}", values: { amount, symbol, chain: chain.name } }
-}
-
-const DECLARED_SYMBOL_TEXT = '{address} declaring the symbol "{symbol}"'
-
-/** A contract as the person is shown it: its address, with the symbol it declares when a prompt may show it. */
-export function contractValue(address: string, symbol: string | null): string | CallValue {
-  return symbol === null ? address : { text: DECLARED_SYMBOL_TEXT, values: { address, symbol } }
-}
-
-function ownerFact(own: OwnWallet | undefined): CallFact {
-  const value: CallValue = own
-    ? { text: "your wallet {wallet}", values: { wallet: own.index === null ? own.label : `${own.label}#${own.index}` } }
-    : { text: "not one of your wallets" }
-  return { label: "Own wallet", value }
 }
 
 function tokenFact({ chain, token, symbol }: SendPlan): CallFact {
