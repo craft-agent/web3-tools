@@ -2,7 +2,8 @@ import { base58 } from "@scure/base"
 import { isToolError, ToolError } from "../errors"
 import type { ToolRuntime } from "../runtime"
 import { evmAddress, evmSecretsOf, MAX_ACCOUNT_INDEX, phraseSeed, solanaAddress, solanaSeedOf } from "./derive"
-import { KEY_BYTES, keyMaterial } from "./keys"
+import { holding } from "./holding"
+import { KEY_BYTES } from "./keys"
 import type { Family, KeyKind, WalletKey } from "./keys"
 import { checkLabel, listLabels } from "./labels"
 import { readWalletKey } from "./source"
@@ -45,25 +46,6 @@ const FAMILY_WORDS: Record<Family, { key: string; acts: string }> = {
   solana: { key: "a Solana", acts: "Solana" },
 }
 
-type Material = ReturnType<typeof keyMaterial>
-
-/**
- * Runs `work` on a copy of the key's material and zeroes the copy after. A
- * failure that is not a refusal is replaced by a fixed message, since it may
- * hold the material.
- */
-function holding<T>(key: WalletKey, label: string, work: (material: Material) => T): T {
-  const material = keyMaterial(key)
-  try {
-    return work(material)
-  } catch (error) {
-    if (isToolError(error)) throw error
-    throw new ToolError("internal_error", `The signer failed while deriving the accounts of wallet "${label}".`)
-  } finally {
-    material.secret?.fill(0)
-  }
-}
-
 function evmAddressesOf(seed: Uint8Array, indexes: readonly number[]): string[] {
   const secrets = evmSecretsOf(seed, indexes)
   try {
@@ -101,7 +83,7 @@ function loneAccount(kind: KeyKind, secret: Uint8Array): Account {
 
 /** The accounts `range` names of `key` when it is a seed phrase, else its one account. */
 function accountsOf(key: WalletKey, label: string, range: AccountRange): Account[] {
-  return holding(key, label, ({ phrase, secret }) => {
+  return holding(key, label, "deriving the accounts of", ({ phrase, secret }) => {
     if (phrase !== undefined) return phraseAccounts(phrase, range)
     if (secret === undefined) throw new ToolError("internal_error", `Wallet "${label}" holds no key material.`)
     return [loneAccount(key.kind, secret)]
@@ -208,6 +190,27 @@ async function onlyLabel(runtime: ToolRuntime, stateDir: string): Promise<string
 }
 
 /**
+ * Refuses, as `invalid_argument`, a key that cannot act on `family` and an
+ * account other than #0 of a single key; a seed phrase opens either family at
+ * any index. `requested` is the account index asked for, `null` when none.
+ */
+export function checkKeyFits(key: WalletKey, label: string, family: Family, requested: number | null): void {
+  if (key.kind === "phrase") return
+  if (key.kind !== family) {
+    throw new ToolError(
+      "invalid_argument",
+      `Wallet "${label}" holds ${FAMILY_WORDS[key.kind].key} key, which cannot act on ${FAMILY_WORDS[family].acts}.`,
+    )
+  }
+  if (requested !== null && requested !== 0) {
+    throw new ToolError(
+      "invalid_argument",
+      `Wallet "${label}" holds a single key and has no account #${requested}; use "${label}".`,
+    )
+  }
+}
+
+/**
  * The wallet and address that `account` names on `family`: `label` or
  * `label#index`; a seed phrase takes index 0 when none is given, a lone key has
  * no index. Left out, `account` is the only label there is; with none or
@@ -222,20 +225,8 @@ export async function resolveAccount(
   const { label, index: requested } =
     account === undefined ? { label: await onlyLabel(runtime, stateDir), index: null } : parseAccount(account)
   const { key } = await readWalletKey(label, runtime, stateDir)
-  const isPhrase = key.kind === "phrase"
-  if (!isPhrase && key.kind !== family) {
-    throw new ToolError(
-      "invalid_argument",
-      `Wallet "${label}" holds ${FAMILY_WORDS[key.kind].key} key, which cannot act on ${FAMILY_WORDS[family].acts}.`,
-    )
-  }
-  if (!isPhrase && requested !== null && requested !== 0) {
-    throw new ToolError(
-      "invalid_argument",
-      `Wallet "${label}" holds a single key and has no account #${requested}; use "${label}".`,
-    )
-  }
-  const index = isPhrase ? (requested ?? 0) : null
+  checkKeyFits(key, label, family, requested)
+  const index = key.kind === "phrase" ? (requested ?? 0) : null
   const [resolved] = accountsOf(key, label, { from: index ?? 0, count: 1 })
   const address = resolved?.[family]
   if (address === undefined) {
