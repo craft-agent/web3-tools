@@ -65,7 +65,7 @@ export function rawTransactionHex(signed: SignedEvmTransaction): string {
 }
 
 /** The account that signs: wallet `label`, its index in a seed phrase (`null` for a lone key) and the address it must open. */
-type Sender = { label: string; index: number | null; address: string }
+export type Sender = { label: string; index: number | null; address: string }
 
 /** The 32-byte secret of account `index` of `phrase`; the seed is zeroed. */
 function phraseSecret(phrase: string, index: number): Uint8Array {
