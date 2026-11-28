@@ -685,7 +685,12 @@ and every entry point checks them the same way.
   reported by its hash. Keys cannot be masked by their shape, since a
   transaction hash has the shape of an EVM key, so the signer keeps them from
   ever reaching a string: an error raised while it holds a key is replaced by
-  a fixed message naming the step that failed.
+  a fixed message naming the step that failed. A signed transaction is an
+  object that shows its hash only, and its bytes are taken out for the
+  broadcast's request alone.
+- **It signs for the address the prompt showed.** The sender's address is
+  derived again from the key when it signs, and a key that no longer opens it
+  fails the call as `stale`, signing nothing.
 - **A key that cannot be read is `unauthenticated` and a key file anyone else
   can reach is `forbidden`**; neither message quotes any part of it.
 
@@ -722,14 +727,20 @@ and every entry point checks them the same way.
   transaction's `to`: for a token, the recipient in the calldata or the
   instruction's owner. An ENS name is resolved when the prompt is drawn, and
   the prompt shows the name and the address it resolved to.
+- **ENS names resolve on-chain only**, through ENS's Universal Resolver on
+  Ethereum for a mainnet and on Sepolia for a testnet, after ENSIP-15
+  normalisation. A name that needs an off-chain lookup (EIP-3668) is refused
+  with a request for the address: the lookup would send a request to a URL the
+  name's resolver chooses, which no tool follows.
 - **Every write asks, a send to the user's own wallet included.** The prompt
   says when the recipient is one of the user's own, and `targets` name the
   sender and the recipient, so an "always" answer covers that pair only.
 - **A write that moves funds out of a wallet or can add exposure is
   administrative**, so Claude Code asks for it even under an allow rule. A
-  write that can only lower exposure (a cancel, a reduce-only order) is a tool
-  of its own and may take a lower class; a harness that remembers an approval
-  for a tool would otherwise carry it over to a harmful call.
+  write that can only lower exposure (a cancel, a reduce-only order, revoking
+  an approval) is a tool of its own and may take a lower class; a harness that
+  remembers an approval for a tool would otherwise carry it over to a harmful
+  call. Such a tool still pays a fee and takes `max_fee`.
 - **A write returns what it sent**: the hash or order ids, the outcome and the
   ledger row's id. Nothing after the broadcast turns the reply into an error:
   a failed read while waiting reports `pending`.
@@ -743,14 +754,29 @@ and every entry point checks them the same way.
   outcome: `confirmed`, `failed` (landed but reverted, so the fee was spent),
   `pending` or `rejected` (the network refused it, so nothing moved). A crash
   between the row and the broadcast then never sends twice.
+- **The lock is refreshed while it is held**, so a broadcast that waits on a
+  slow node is not taken for a dead call; a lock left untouched for 30 seconds
+  was left by one. A call that cannot take it in time is `rate_limited`, since
+  another send is under way.
+- **The file only grows**: a row's change is a new line, and the last line of
+  a row wins. A last line cut off by a crash is a row whose write never
+  finished, so its broadcast never started; it is dropped before the next
+  line is written. Any other line that cannot be read stops every write, since
+  a row lost could be a hash sent.
 - **A hash the ledger has seen is never broadcast again.**
 - **A sender with an `unknown` or `pending` row sends nothing else** on that
   chain until the row is resolved: the next write from it looks the hash up
-  first, and refuses as `stale`, naming the hash, while the chain still does
-  not say. A retry after a lost answer would otherwise send the same funds
-  twice under a fresh nonce.
+  first, and refuses as `stale`, naming the hash, while the network holds it
+  without a result. A retry after a lost answer would otherwise send the same
+  funds twice under a fresh nonce. A hash the network does not know may never
+  have left, so the next write takes its place without sending it again: on
+  EVM chains it is signed with that row's nonce, so at most one of the two can
+  ever land, and on Solana it waits until the row's blockhash has expired. A
+  row whose nonce another transaction took, or whose blockhash expired before
+  it landed, is `rejected`.
 - **A row holds no secret**: the chain, the sender, the recipient, the kind,
-  the amount, the hash, the outcome and when.
+  the token, the amount, the hash, the nonce or the blockhash's last valid
+  height, the outcome and when.
 - **`sends_per_hour` caps the writes of every label together.** It is an
   option, unset by default, counting `unknown`, `pending`, `confirmed` and
   `failed` rows of the last 60 minutes; a call past it is `rate_limited`. A
@@ -773,7 +799,33 @@ package adds to it.
   estimate or gas price, which change with every block and would fail the call
   as `stale`. A read gives those beforehand.
 - **The facts of this package** are listed here with the tools that use them,
-  as each domain ships.
+  as each domain ships. Each tool's labels come in this order, and the Japanese
+  words of every label and template are in `src/core/evm/words.ts`.
+
+  `web3_evm_send`:
+  - `Recipient`: the address that receives, whole, in checksum case; the one an
+    ENS name resolved to.
+  - `ENS name`: only when the recipient was given as a name: the normalized name
+    and the address it resolved to.
+  - `Own wallet`: `your wallet <label>` (`<label>#<index>` for a seed phrase's
+    account) when the recipient is one of the user's own, else
+    `not one of your wallets`.
+  - `Token`: the native coin of the chain, or the token's address with the
+    symbol it declares quoted (no symbol when it is not fit to show). An NFT
+    send has `Collection` in its place, and no `Amount`.
+  - `Amount`: the amount in the token's units, with its smallest units and
+    decimals (wei for the native coin). An NFT send has `Token id` and, for an
+    ERC-1155, `Count`.
+  - `Max fee`: the fee ceiling in wei, and in the chain's coin.
+
+  `web3_evm_revoke`:
+  - `Spender`: the address whose approval is revoked, whole, in checksum case.
+  - `ENS name`: as above, for a spender given as a name.
+  - `Token` (an allowance) or `Collection` (an operator): the contract's
+    address with the symbol it declares quoted.
+  - `Revokes`: `the allowance` or `the operator approval`, never an amount,
+    which moves with every spend.
+  - `Max fee`: as above.
 
 ## Grants
 

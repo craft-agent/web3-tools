@@ -469,3 +469,34 @@ export function evmChain(key: string): EvmChain {
   }
   return chain
 }
+
+/** The OP Stack's `GasPriceOracle` predeploy, which Mantle's L2 shares. */
+const OP_GAS_PRICE_ORACLE = "0x420000000000000000000000000000000000000F"
+
+/** Scroll's `L1GasPriceOracle` predeploy. */
+const SCROLL_L1_GAS_PRICE_ORACLE = "0x5300000000000000000000000000000000000002"
+
+/** The contract each fee model's L1 data fee (and operator fee) is read from; `gas` and `linea` have none. */
+export const FEE_ORACLES = {
+  op: OP_GAS_PRICE_ORACLE,
+  mantle: OP_GAS_PRICE_ORACLE,
+  scroll: SCROLL_L1_GAS_PRICE_ORACLE,
+} as const satisfies Partial<Record<FeeModel, string>>
+
+/** ENS's Universal Resolver, at the same address on Ethereum and Sepolia; an upgradeable proxy. */
+export const ENS_UNIVERSAL_RESOLVER_ADDRESS = "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe"
+
+/** The chain ENS names resolve on for `chain`: Ethereum for a mainnet, Sepolia for a testnet. */
+export function ensChainOf(chain: EvmChain): EvmChain {
+  return evmChain(chain.testnet ? "sepolia" : "ethereum")
+}
+
+/**
+ * Hyperliquid's deprecated deposit bridge (Bridge2), on Arbitrum and Arbitrum
+ * Sepolia. Refused as a recipient on every chain: funds sent to it by anything
+ * but its USDC are lost.
+ */
+export const HYPERLIQUID_BRIDGE_ADDRESSES: readonly { address: string; chain: EvmChainKey }[] = [
+  { address: "0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7", chain: "arbitrum" },
+  { address: "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89", chain: "arbitrum-sepolia" },
+]

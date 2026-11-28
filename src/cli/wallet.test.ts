@@ -85,7 +85,7 @@ describe("wallet import", () => {
     expect(spaced.code).toBe(EXIT_OK)
     expect(spaced.stdout).toContain('Imported wallet "work"')
     expect(equals.code).toBe(EXIT_OK)
-    expect(readdirSync(join(stateDir, "accounts"))).toEqual(["other", "work"])
+    expect(readdirSync(join(stateDir, "accounts")).sort()).toEqual(["other", "work"])
   })
 
   test("--state-dir decides where the wallet is kept, ahead of the environment", async () => {

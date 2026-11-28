@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import { isToolError } from "../errors"
-import { EVM_CHAINS, EVM_CHAIN_KEYS, evmChain, type EvmChain } from "./evm"
+import { parseEvmAddress } from "../evm/address"
+import {
+  ENS_UNIVERSAL_RESOLVER_ADDRESS,
+  EVM_CHAINS,
+  EVM_CHAIN_KEYS,
+  FEE_ORACLES,
+  HYPERLIQUID_BRIDGE_ADDRESSES,
+  ensChainOf,
+  evmChain,
+  type EvmChain,
+} from "./evm"
 
 const chains: readonly EvmChain[] = EVM_CHAINS
 
@@ -77,6 +87,37 @@ describe("the EVM chain table", () => {
 
   test("the keys list the table in order", () => {
     expect(EVM_CHAIN_KEYS).toEqual(chains.map((chain) => chain.key) as typeof EVM_CHAIN_KEYS)
+  })
+})
+
+describe("ensChainOf", () => {
+  test("is Ethereum for a mainnet and Sepolia for a testnet, for every chain of the table", () => {
+    for (const chain of chains) {
+      expect(ensChainOf(chain).key).toBe(chain.testnet ? "sepolia" : "ethereum")
+    }
+  })
+})
+
+describe("the system addresses", () => {
+  test("the Universal Resolver and Hyperliquid's bridges are valid EIP-55 addresses", () => {
+    const addresses = [ENS_UNIVERSAL_RESOLVER_ADDRESS, ...HYPERLIQUID_BRIDGE_ADDRESSES.map((entry) => entry.address)]
+    for (const address of addresses) {
+      expect(parseEvmAddress(address)).toBe(address)
+    }
+  })
+
+  test("the fee oracles are valid EIP-55 addresses, one per model that reads an L1 data fee", () => {
+    expect(Object.keys(FEE_ORACLES).sort()).toEqual(["mantle", "op", "scroll"])
+    for (const address of Object.values(FEE_ORACLES)) {
+      expect(parseEvmAddress(address)).toBe(address)
+    }
+    expect(FEE_ORACLES.mantle).toBe(FEE_ORACLES.op)
+  })
+
+  test("each bridge sits on a chain of the table, one mainnet and one testnet", () => {
+    const bridged = HYPERLIQUID_BRIDGE_ADDRESSES.map((entry) => evmChain(entry.chain))
+    expect(bridged.map((chain) => chain.testnet)).toEqual([false, true])
+    expect(bridged[1].mainnet).toBe(bridged[0].key)
   })
 })
 
