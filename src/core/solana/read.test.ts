@@ -37,7 +37,7 @@ describe("web3SolanaRead", () => {
         provider: "public",
       })),
     })
-    for (const chain of result.chains) {
+    for (const chain of result.chains!) {
       expect(Object.hasOwn(chain, "mainnet")).toBe(chain.testnet)
     }
   })
@@ -49,7 +49,7 @@ describe("web3SolanaRead", () => {
       CTX,
     )
 
-    expect(result.chains.map((chain) => chain.provider)).toEqual(SOLANA_CHAINS.map(() => "helius"))
+    expect(result.chains!.map((chain) => chain.provider)).toEqual(SOLANA_CHAINS.map(() => "helius"))
     const serialized = JSON.stringify(result)
     expect(serialized).not.toContain(HELIUS_KEY)
     expect(serialized).not.toContain("helius-rpc.com")
