@@ -754,14 +754,29 @@ and every entry point checks them the same way.
   outcome: `confirmed`, `failed` (landed but reverted, so the fee was spent),
   `pending` or `rejected` (the network refused it, so nothing moved). A crash
   between the row and the broadcast then never sends twice.
+- **The lock is refreshed while it is held**, so a broadcast that waits on a
+  slow node is not taken for a dead call; a lock left untouched for 30 seconds
+  was left by one. A call that cannot take it in time is `rate_limited`, since
+  another send is under way.
+- **The file only grows**: a row's change is a new line, and the last line of
+  a row wins. A last line cut off by a crash is a row whose write never
+  finished, so its broadcast never started; it is dropped before the next
+  line is written. Any other line that cannot be read stops every write, since
+  a row lost could be a hash sent.
 - **A hash the ledger has seen is never broadcast again.**
 - **A sender with an `unknown` or `pending` row sends nothing else** on that
   chain until the row is resolved: the next write from it looks the hash up
-  first, and refuses as `stale`, naming the hash, while the chain still does
-  not say. A retry after a lost answer would otherwise send the same funds
-  twice under a fresh nonce.
+  first, and refuses as `stale`, naming the hash, while the network holds it
+  without a result. A retry after a lost answer would otherwise send the same
+  funds twice under a fresh nonce. A hash the network does not know may never
+  have left, so the next write takes its place without sending it again: on
+  EVM chains it is signed with that row's nonce, so at most one of the two can
+  ever land, and on Solana it waits until the row's blockhash has expired. A
+  row whose nonce another transaction took, or whose blockhash expired before
+  it landed, is `rejected`.
 - **A row holds no secret**: the chain, the sender, the recipient, the kind,
-  the amount, the hash, the outcome and when.
+  the token, the amount, the hash, the nonce or the blockhash's last valid
+  height, the outcome and when.
 - **`sends_per_hour` caps the writes of every label together.** It is an
   option, unset by default, counting `unknown`, `pending`, `confirmed` and
   `failed` rows of the last 60 minutes; a call past it is `rate_limited`. A
