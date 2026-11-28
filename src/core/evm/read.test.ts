@@ -38,7 +38,7 @@ describe("web3EvmRead", () => {
         provider: "public",
       })),
     })
-    for (const chain of result.chains) {
+    for (const chain of result.chains!) {
       expect(Object.hasOwn(chain, "mainnet")).toBe(chain.testnet)
     }
   })
@@ -50,7 +50,7 @@ describe("web3EvmRead", () => {
       CTX,
     )
 
-    for (const chain of result.chains) {
+    for (const chain of result.chains!) {
       expect(chain.provider).toBe(chain.key === "scroll-sepolia" ? "public" : "alchemy")
     }
     const serialized = JSON.stringify(result)

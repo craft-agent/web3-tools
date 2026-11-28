@@ -16,7 +16,7 @@ export function transactionUrl(chain: EvmChain, hash: string): string {
 export function stillWaiting(chain: EvmChain, hash: string): ToolError {
   return new ToolError(
     "stale",
-    `The earlier send ${hash} on ${chain.name} is still waiting to land, so nothing was sent. Wait for it, and check the hash on the explorer: ${transactionUrl(chain, hash)}.`,
+    `The earlier send ${hash} on ${chain.name} is still waiting to land, so nothing was sent. Wait for it, and check the hash with web3_evm_read (method transaction, chain ${chain.key}) or on the explorer: ${transactionUrl(chain, hash)}.`,
   )
 }
 
